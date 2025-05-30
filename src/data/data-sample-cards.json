@@ -1,0 +1,49 @@
+{
+  "data": {
+    "title": "Random set of flashcards",
+    "difficulty": "hard",
+    "created": "26/05/25",
+    "cards": [
+      {
+        "id": 1,
+        "front": "Dijkstra's algorithm complexity?",
+        "back": "O(E + V log V)"
+      },
+      {
+        "id": 2,
+        "front": "No-Cloning Theorem states?",
+        "back": "Can't copy quantum states"
+      },
+      {
+        "id": 3,
+        "front": "Riemann Hypothesis concerns?",
+        "back": "Zeta function zeros"
+      },
+      {
+        "id": 4,
+        "front": "P vs NP problem?",
+        "back": "Easy verify vs solve"
+      },
+      {
+        "id": 5,
+        "front": "Banach-Tarski paradox?",
+        "back": "Ball becomes two"
+      },
+      {
+        "id": 6,
+        "front": "Church-Turing thesis meaning?",
+        "back": "Turing machines compute everything"
+      },
+      {
+        "id": 7,
+        "front": "Halting Problem significance?",
+        "back": "First undecidable problem"
+      },
+      {
+        "id": 8,
+        "front": "Gödel's incompleteness theorems?",
+        "back": "Math has unprovable truths"
+      }
+    ]
+  }
+}
