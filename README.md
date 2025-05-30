@@ -1,12 +1,51 @@
-# React + Vite
+# Flashcards React App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A simple and interactive flashcards application built with React and Vite. This app allows users to flip cards to view questions and answers, facilitating effective study sessions.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Card Flipping**: Click on a card to flip and reveal the answer.
+- **Routing**: Navigate between different pages seamlessly.
+- **Responsive Design**: Optimized for various screen sizes.
+- **Fast Development**: Leveraging Vite for rapid development and hot module replacement.
 
-## Expanding the ESLint configuration
+## 🛠️ Technologies Used
 
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- [React](https://reactjs.org/)
+- [Vite](https://vitejs.dev/)
+- [ESLint](https://eslint.org/)
+- [Prettier](https://prettier.io/)
+
+## 📁 Project Structure
+
+flashcards-react-app/
+├── public/
+├── src/
+│ ├── components/
+│ ├── pages/
+│ ├── App.jsx
+│ └── main.jsx
+├── .gitignore
+├── .prettierrc
+├── eslint.config.js
+├── index.html
+├── package.json
+├── vite.config.js
+└── README.md
+
+
+## 📦 Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v14 or higher)
+- [npm](https://www.npmjs.com/) or [Yarn](https://yarnpkg.com/)
+
+### Installation
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/mukeremshifa/flashcards-react-app.git
+   cd flashcards-react-app
+
