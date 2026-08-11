@@ -1,0 +1,230 @@
+import { z } from 'zod';
+
+/**
+ * The single definition of what a card is.
+ *
+ * SPEC §9: this module is imported by the client *and* by the Edge Function, so
+ * the same schema validates LLM output, form input, and anything read back from
+ * the database. If you are tempted to write a second card type somewhere else,
+ * add it here instead.
+ */
+
+// ---------------------------------------------------------------------------
+// Card payloads (discriminated union on `kind`)
+// ---------------------------------------------------------------------------
+
+export const CLOZE_MARKER = /\{\{c(\d+)::([^}]*)\}\}/g;
+
+export const BasicPayload = z.object({
+  kind: z.literal('basic'),
+  front: z.string().trim().min(1, 'Front is required').max(1000),
+  back: z.string().trim().min(1, 'Back is required').max(2000),
+});
+
+export const ClozePayload = z.object({
+  kind: z.literal('cloze'),
+  text: z
+    .string()
+    .trim()
+    .min(1, 'Text is required')
+    .max(2000)
+    .refine(value => countClozeGroups(value) > 0, {
+      message: 'Needs at least one {{c1::…}} deletion',
+    })
+    // SPEC §5.3: v1 stores one deletion group per card. Multi-group notes are
+    // split at ingest, so anything reaching validation must already be split.
+    .refine(value => countClozeGroups(value) === 1, {
+      message: 'Only one deletion group per card — split multi-group notes first',
+    }),
+  hint: z.string().trim().max(200).optional(),
+});
+
+export const McqPayload = z.object({
+  kind: z.literal('mcq'),
+  stem: z.string().trim().min(1, 'Question is required').max(1000),
+  options: z
+    .array(
+      z.object({
+        text: z.string().trim().min(1, 'Option cannot be empty').max(500),
+        correct: z.boolean(),
+      }),
+    )
+    .min(3, 'At least 3 options')
+    .max(5, 'At most 5 options')
+    .refine(options => options.filter(option => option.correct).length === 1, {
+      message: 'Exactly one option must be correct',
+    })
+    .refine(
+      options =>
+        new Set(options.map(option => option.text.toLowerCase())).size === options.length,
+      { message: 'Options must be distinct' },
+    ),
+  explanation: z.string().trim().max(1000).optional(),
+});
+
+export const CardPayload = z.discriminatedUnion('kind', [
+  BasicPayload,
+  ClozePayload,
+  McqPayload,
+]);
+
+export type BasicPayload = z.infer<typeof BasicPayload>;
+export type ClozePayload = z.infer<typeof ClozePayload>;
+export type McqPayload = z.infer<typeof McqPayload>;
+export type CardPayload = z.infer<typeof CardPayload>;
+export type CardKind = CardPayload['kind'];
+
+export const CARD_KINDS = [
+  'basic',
+  'cloze',
+  'mcq',
+] as const satisfies readonly CardKind[];
+
+// ---------------------------------------------------------------------------
+// Cloze helpers
+// ---------------------------------------------------------------------------
+
+/** Distinct deletion group numbers in a cloze string: `{{c1::x}} {{c1::y}}` is 1 group. */
+export function countClozeGroups(text: string): number {
+  const groups = new Set<string>();
+  for (const match of text.matchAll(CLOZE_MARKER)) {
+    const group = match[1];
+    // Reject `{{c1::}}` — an empty deletion has nothing to recall.
+    if (group !== undefined && match[2] !== undefined && match[2].trim() !== '') {
+      groups.add(group);
+    }
+  }
+  return groups.size;
+}
+
+/**
+ * Split a multi-group cloze note into one string per deletion group, keeping the
+ * targeted group's markers and unwrapping every other group to plain text. This
+ * is what makes the §5.3 one-group-per-card simplification safe: a model that
+ * emits `{{c1::…}} … {{c2::…}}` yields two independently reviewable cards rather
+ * than being rejected.
+ */
+export function splitClozeGroups(text: string): string[] {
+  const groups = [...new Set([...text.matchAll(CLOZE_MARKER)].map(match => match[1]))]
+    .filter((group): group is string => group !== undefined)
+    .sort((a, b) => Number(a) - Number(b));
+
+  if (groups.length <= 1) return [text];
+
+  return groups.map(keep =>
+    text.replace(CLOZE_MARKER, (whole, group: string, content: string) =>
+      group === keep ? whole : content,
+    ),
+  );
+}
+
+/** Segments for rendering: `blank: true` is the part the learner must recall. */
+export type ClozeSegment = { text: string; blank: boolean };
+
+export function parseCloze(text: string): ClozeSegment[] {
+  const segments: ClozeSegment[] = [];
+  let cursor = 0;
+
+  for (const match of text.matchAll(CLOZE_MARKER)) {
+    const start = match.index;
+    const content = match[2];
+    if (start === undefined || content === undefined) continue;
+    if (start > cursor) segments.push({ text: text.slice(cursor, start), blank: false });
+    segments.push({ text: content, blank: true });
+    cursor = start + match[0].length;
+  }
+
+  if (cursor < text.length) segments.push({ text: text.slice(cursor), blank: false });
+  return segments;
+}
+
+// ---------------------------------------------------------------------------
+// Generation request / streamed response
+// ---------------------------------------------------------------------------
+
+export const GENERATION_LIMITS = {
+  minChars: 100,
+  maxChars: 20_000,
+  minCards: 3,
+  maxCards: 50,
+} as const;
+
+export const GenerateRequest = z.object({
+  text: z.string().trim().min(GENERATION_LIMITS.minChars).max(GENERATION_LIMITS.maxChars),
+  cardCount: z
+    .number()
+    .int()
+    .min(GENERATION_LIMITS.minCards)
+    .max(GENERATION_LIMITS.maxCards),
+  kinds: z.array(z.enum(CARD_KINDS)).min(1),
+  deckTitle: z.string().trim().min(1).max(200),
+  depth: z.enum(['recall', 'balanced', 'deep']).default('balanced'),
+});
+export type GenerateRequest = z.infer<typeof GenerateRequest>;
+
+/**
+ * One NDJSON line as emitted by the model (SPEC §7.3). Deliberately *not* the
+ * same shape as a stored card: the model supplies content plus provenance, the
+ * server supplies ids and scheduling state.
+ */
+export const GeneratedCard = z.object({
+  card: CardPayload,
+  source_excerpt: z.string().trim().max(2000).optional(),
+});
+export type GeneratedCard = z.infer<typeof GeneratedCard>;
+
+/** SSE frames the Edge Function sends to the browser. */
+export const StreamEvent = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('meta'),
+    deckId: z.string().uuid(),
+    generationId: z.string().uuid(),
+    expected: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal('card'),
+    id: z.string().uuid(),
+    index: z.number().int().nonnegative(),
+    payload: CardPayload,
+    source_excerpt: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal('warn'),
+    index: z.number().int().nonnegative(),
+    reason: z.string(),
+  }),
+  z.object({
+    type: z.literal('done'),
+    returned: z.number().int().nonnegative(),
+    inputTokens: z.number().int().nonnegative().optional(),
+    outputTokens: z.number().int().nonnegative().optional(),
+  }),
+  z.object({
+    type: z.literal('error'),
+    code: z.enum([
+      'quota_exceeded',
+      'rate_limited',
+      'input_too_long',
+      'refused',
+      'provider_error',
+      'internal',
+    ]),
+    message: z.string(),
+  }),
+]);
+export type StreamEvent = z.infer<typeof StreamEvent>;
+
+// ---------------------------------------------------------------------------
+// Review grades
+// ---------------------------------------------------------------------------
+
+/** FSRS grades. Numeric values match ts-fsrs `Rating` and the DB check constraint. */
+export const Grade = { Again: 1, Hard: 2, Good: 3, Easy: 4 } as const;
+export type Grade = (typeof Grade)[keyof typeof Grade];
+
+export const GradeSchema = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+]);
