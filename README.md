@@ -49,6 +49,21 @@ Because superusers bypass RLS, the harness switches to a non-superuser `authenti
 role before asserting anything — otherwise the tests would pass no matter what the
 policies said.
 
+## Postgres versions must match
+
+The Supabase project runs **Postgres 17**; `npm test` runs the migrations on PGlite, which
+must therefore also be Postgres 17. If they drift, a migration can pass locally and fail on
+`db push`.
+
+- `supabase/pg-version.json` records the expected major — the single source of truth.
+- `src/test/pg-version.test.ts` fails the suite if PGlite reports a different major.
+- `npm run db:pg-version` compares that number against the live project.
+
+The mapping, measured rather than assumed: **PGlite 0.4.x ships PG 17.5, PGlite 0.5.x ships
+PG 18.3.** So `@electric-sql/pglite` is pinned to `^0.4.6` on purpose. Do not accept a
+Dependabot bump to 0.5.x without upgrading the Supabase project first — the guard test will
+catch it, and the fix is to align, never to edit the expected number.
+
 ## Database
 
 Migrations are plain SQL in `supabase/migrations`, applied in filename order:
