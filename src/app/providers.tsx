@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
+import { AuthProvider } from '@/features/auth/AuthProvider';
 import { ThemeProvider } from './theme';
 
 function makeQueryClient() {
@@ -29,8 +30,12 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <BrowserRouter>
-          {children}
-          <Toaster position="top-center" richColors />
+          {/* Inside the Query client: signing out clears the cache, so one
+              account's decks are never left on screen for the next. */}
+          <AuthProvider>
+            {children}
+            <Toaster position="top-center" richColors />
+          </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>

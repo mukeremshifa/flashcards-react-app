@@ -220,10 +220,85 @@ Extend the PGlite harness; it already runs migrations, so RPC tests need no clou
 | `day.test.ts` — 04:00 boundary across timezones and a DST shift | Streaks breaking for anyone outside UTC                      |
 | `CardEditor.test.tsx` — multi-group cloze paste splits          | A validation error shown to the user instead of two cards    |
 
-## Decisions to record
+## Decisions recorded
 
-- The exact `ts-fsrs` version and whether default parameters were used, in this file. FSRS
-  behaviour changes between versions and a schedule is a long-lived artifact.
-- Whether fuzz is on (it should be) and the request-retention setting, if changed from the
-  library default.
-- Any new migration filename, appended to the list in `README.md`.
+Executed 2026-08-12. Everything below is what was actually chosen, not what was planned.
+
+### Scheduler
+
+- **`ts-fsrs` 5.4.1**, pinned by `package-lock.json`. FSRS behaviour changes between
+  versions and a schedule is a long-lived artifact, so a major bump is a decision, not a
+  chore.
+- **Default parameters throughout**: default weights `w`, `request_retention` 0.90,
+  `maximum_interval` 36500, default learning steps `[1m, 10m]` and relearning steps `[10m]`.
+  Nothing was tuned. `profiles.fsrs_params` is still null for every user and is passed
+  through `scheduler()` when it is not, so the post-v1 optimiser needs no code change here.
+- **Fuzz: on.** ts-fsrs seeds it from the card rather than a global RNG, so two cards with
+  the same interval scatter while one card asked twice answers the same. That determinism
+  is load-bearing: it is what lets a rating button promise "Good → 4d" and then honour it.
+- **Short-term learning steps: on** (the library default), which forced a schema addition —
+  see below.
+
+### Schema additions beyond the plan
+
+Three, all in `supabase/migrations/20260812093000_review_card.sql`, all because the plan's
+acceptance criteria could not otherwise be met:
+
+1. **`cards.learning_steps`.** ts-fsrs reads the step index off the card. Without a column
+   for it, every learning card restarts at step 0 on each review, so a card rated Good
+   repeatedly loops on the 10-minute step and never graduates — a wrong schedule that looks
+   entirely normal in the UI. The alternative, `enable_short_term: false`, was rejected
+   because it retires the `learning` and `relearning` states altogether, and SPEC §4.4
+   reports a distribution across all four.
+2. **`reviews.due_before`, `last_review_before`, `elapsed_days_before`,
+   `learning_steps_before`.** "Undo restores the exact prior scheduling state" is not
+   satisfiable from the columns §5.4 originally listed — `due` in particular is
+   unrecoverable, and deriving the others from the preceding log row breaks as soon as a
+   review in the middle has been undone. Explicit columns, one exact answer.
+3. **`reviews.undone_at`**, as the plan specified — plus the mechanism to set it, which the
+   plan did not anticipate: §5.7 gives `reviews` no UPDATE policy at all, so a tombstone was
+   impossible. Rather than make `undo_last_review` `security definer` (which would hand undo
+   a way past RLS for every other column too), the table got a narrow UPDATE policy and a
+   trigger that permits `undone_at` and nothing else, once. Both functions stayed
+   `security invoker`. `src/test/rls.test.ts` was updated to assert the new shape.
+
+### Error codes
+
+`review_card` and `undo_last_review` raise `PT404` (not yours / not found — RLS makes those
+the same thing) and `PT409` (the card moved since the client loaded it). PostgREST maps a
+`PTxxx` SQLSTATE onto that HTTP status, so `isStaleCardError` in `src/lib/queries.ts` can
+tell a two-tab conflict from a real failure and say so instead of showing a stack trace.
+
+### Deviations worth knowing
+
+- **`elapsed_days` on the log comes from `p_next`**, not from the card's current row as the
+  plan's step 4 says. The card's stored `elapsed_days` is the elapsed time of its _previous_
+  review; the number an optimiser needs is the one the scheduler actually saw. Every other
+  `*_before` field is read from the locked row.
+- **Lapses count every `Again`**, per the plan, which differs from ts-fsrs's own rule
+  (it counts one only from the `review` state). `lapses` is a display counter and is not an
+  input to the FSRS model, so the simpler rule costs nothing — what matters is that it is
+  applied in exactly one place, `review_card`.
+- **The queue policy is a pure function**, `src/lib/queue.ts`, so "the cap holds" and
+  "reviews are never starved" are testable without a database. The SQL stayed a plain fetch.
+- **`decks.new_cards_per_day` is unread.** The cap is `profiles.daily_new_limit` only, as
+  the plan specified; SPEC §5.2 now says so.
+
+### Migration
+
+`supabase/migrations/20260812093000_review_card.sql`, appended to the list in the root
+`README.md`. **It has not been pushed** — pushing is the owner's call. Until it is:
+
+- `src/types/database.ts` carries the new columns and functions **by hand**, with a note at
+  the top saying so. Re-run `npm run db:types` after `npm run db:push` and the note goes.
+- `npm test` already runs this migration against PGlite, so it is verified, just not live.
+
+### Measurements
+
+- 156 tests green across 11 files (`npm test`), plus `typecheck`, `lint` (0 errors, 4
+  fast-refresh warnings), and `build`.
+- The queue fetch over a seeded 2,000-card deck stays under the SPEC §10 300ms budget in
+  PGlite — Postgres in WebAssembly, so the pessimistic case — and `explain` confirms it uses
+  the partial index rather than scanning. Both assertions live in `src/test/queue.test.ts`.
+- The production bundle is 796 kB (234 kB gzipped), over Vite's 500 kB warning line. Not
+  addressed here: code-splitting is a shipping concern and belongs to P4.

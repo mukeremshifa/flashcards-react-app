@@ -4,6 +4,7 @@ import {
   Layers,
   LayoutDashboard,
   Moon,
+  Play,
   Settings,
   Sparkles,
   Sun,
@@ -16,7 +17,7 @@ const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/decks', label: 'Decks', icon: Layers },
   { to: '/create/text', label: 'Create', icon: Sparkles },
-  { to: '/practice', label: 'Practice', icon: BarChart3 },
+  { to: '/practice', label: 'Practice', icon: Play },
   { to: '/progress', label: 'Progress', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: Settings },
 ] as const;
@@ -77,7 +78,7 @@ export function AppLayout() {
       </main>
 
       <footer className="text-muted-foreground border-t px-4 py-4 text-center text-xs">
-        P0 scaffold · see docs/SPEC.md
+        Generation and progress arrive in later phases · see docs/SPEC.md
       </footer>
     </div>
   );

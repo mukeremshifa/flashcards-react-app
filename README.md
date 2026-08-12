@@ -70,15 +70,23 @@ Migrations are plain SQL in `supabase/migrations`, applied in filename order:
 
 - `…_init_schema.sql` — enums, `profiles`, `decks`, `cards`, `reviews`, `generations`
 - `…_rls.sql` — row level security; one owner-only policy set per table
+- `…_review_card.sql` — the `review_card` and `undo_last_review` functions,
+  `cards.learning_steps`, and the pre-review snapshot columns on `reviews`
 
 Two structural decisions worth knowing before you change anything:
 
 1. **Content varies by card kind; scheduling state does not.** `cards.payload` is JSONB
    validated by Zod at the app boundary; the FSRS columns beside it are typed and never
    read `payload`. The scheduler therefore stays kind-agnostic.
-2. **`reviews` is append-only by policy, not convention.** It has SELECT and INSERT
-   policies and no others, so no update or delete is possible for anyone. It is the
-   source of truth for scheduling, undo, and every progress metric.
+2. **`reviews` is append-only by policy, not convention.** It has no DELETE policy at
+   all, and the one UPDATE policy is narrowed by a trigger to a single column —
+   `undone_at`, the tombstone that undo sets. Nothing else about a logged review can be
+   changed by anyone, including its owner. It is the source of truth for scheduling,
+   undo, and every progress metric.
+3. **A rating is one RPC, never two writes from the browser.** `review_card` locks the
+   card, appends the log row, and reschedules the card in one transaction, and refuses
+   the write if the card moved since the client loaded it. Half of a rating is worse
+   than none, because it corrupts a schedule silently.
 
 ## Keys and secrets
 

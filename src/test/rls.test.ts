@@ -121,18 +121,43 @@ describe('review log is append-only', () => {
     await db.actAs(alice);
     await db.raw.query(
       `insert into reviews (user_id, card_id, rating, state_before, elapsed_days,
-                            scheduled_days, state_after, stability_after, difficulty_after)
-       values ($1, $2, 3, 'new', 0, 0, 'learning', 1.2, 5.0)`,
+                            scheduled_days, due_before, state_after, stability_after,
+                            difficulty_after)
+       values ($1, $2, 3, 'new', 0, 0, now(), 'learning', 1.2, 5.0)`,
       [alice, aliceCard],
     );
     const result = await db.raw.query('select id from reviews');
     expect(result.rows).toHaveLength(1);
   });
 
-  it('permits no update, even by the owner', async () => {
+  it('rejects a rewrite of the log itself, even by the owner', async () => {
+    // The undo migration gives reviews a narrow UPDATE policy so undo_last_review
+    // can tombstone a row. A trigger keeps that the *only* thing an update may do.
     await db.actAs(alice);
-    const result = await db.raw.query('update reviews set rating = 1');
+    await expect(db.raw.query('update reviews set rating = 1')).rejects.toThrow(
+      /append-only/i,
+    );
+  });
+
+  it("stops Bob tombstoning Alice's review", async () => {
+    await db.actAs(bob);
+    const result = await db.raw.query('update reviews set undone_at = now()');
     expect(result.affectedRows).toBe(0);
+  });
+
+  it('allows the undo tombstone, and only once', async () => {
+    await db.actAs(alice);
+    const result = await db.raw.query('update reviews set undone_at = now()');
+    expect(result.affectedRows).toBe(1);
+
+    // Not twice, and not back to null: an undone rating stays visible as history
+    // rather than being laundered out of the log an optimiser will learn from.
+    await expect(db.raw.query('update reviews set undone_at = now()')).rejects.toThrow(
+      /already undone/i,
+    );
+    await expect(db.raw.query('update reviews set undone_at = null')).rejects.toThrow(
+      /already undone/i,
+    );
   });
 
   it('permits no delete, even by the owner', async () => {
@@ -183,8 +208,8 @@ describe('schema constraints', () => {
     await expect(
       db.raw.query(
         `insert into reviews (user_id, card_id, rating, state_before, elapsed_days,
-                              scheduled_days, state_after)
-         values ($1, $2, 5, 'new', 0, 0, 'learning')`,
+                              scheduled_days, due_before, state_after)
+         values ($1, $2, 5, 'new', 0, 0, now(), 'learning')`,
         [alice, aliceCard],
       ),
     ).rejects.toThrow(/reviews_rating_check/);

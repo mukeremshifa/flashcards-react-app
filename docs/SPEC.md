@@ -156,6 +156,11 @@ create table decks (
 create index on decks (user_id, updated_at desc);
 ```
 
+`new_cards_per_day` is **not read in v1.** The daily cap is one number per account
+(`profiles.daily_new_limit`), because a per-deck cap on top of an account cap needs a rule
+for how the two interact, and no such rule is obvious enough to guess at. The column stays
+for when there is a reason to answer that question.
+
 ### 5.3 `cards` — content plus scheduling state
 
 The key structural decision: **content varies by card type; scheduling state does not.** The
@@ -188,6 +193,7 @@ create table cards (
   lapses         int              not null default 0,
   scheduled_days int              not null default 0,
   elapsed_days   int              not null default 0,
+  learning_steps int              not null default 0,  -- which (re)learning step
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -248,8 +254,17 @@ export const CardPayload = z.discriminatedUnion('kind', [Basic, Cloze, Mcq]);
 
 ### 5.4 `reviews` — append-only log
 
-This table is the reason FSRS was chosen, and it is never mutated. It powers scheduling,
-every progress metric, undo, and any future FSRS parameter optimisation.
+This table is the reason FSRS was chosen. It powers scheduling, every progress metric,
+undo, and any future FSRS parameter optimisation.
+
+It is append-only, with exactly one exception: `undo_last_review` sets `undone_at`. A
+narrow UPDATE policy plus a trigger make that the only column any update may touch, and it
+may be set once — so the log body is immutable by mechanism rather than by convention.
+
+The `*_before` columns hold the **complete** pre-review snapshot, which is what makes undo
+exact. Storing only state, stability and difficulty (as first drafted) leaves `due` and the
+learning-step index unrecoverable, and an undo that restores the interval but not the
+memory state looks correct while quietly damaging the schedule.
 
 ```sql
 create table reviews (
@@ -262,16 +277,25 @@ create table reviews (
   duration_ms int,
 
   -- FSRS state BEFORE this review (enables undo + offline optimiser)
-  state_before      fsrs_state       not null,
-  stability_before  double precision,
-  difficulty_before double precision,
-  elapsed_days      int not null,
-  scheduled_days    int not null,
+  state_before          fsrs_state       not null,
+  stability_before      double precision,
+  difficulty_before     double precision,
+  due_before            timestamptz not null,
+  last_review_before    timestamptz,
+  elapsed_days_before   int not null default 0,
+  learning_steps_before int not null default 0,
+  elapsed_days      int not null,   -- days that passed before THIS review
+  scheduled_days    int not null,   -- the interval the card carried into it
 
   -- state AFTER
   state_after      fsrs_state       not null,
   stability_after  double precision,
-  difficulty_after double precision
+  difficulty_after double precision,
+
+  -- Set when the user undid this rating. The row is never deleted: an undone
+  -- rating is real history, and the optimiser decides for itself whether to use
+  -- it. P3's retention math excludes rows where this is set.
+  undone_at timestamptz
 );
 create index on reviews (user_id, reviewed_at desc);
 create index on reviews (card_id, reviewed_at desc);
@@ -331,6 +355,8 @@ create policy owner_all on decks
 ```
 
 Repeated for `cards`, `reviews`, `generations`, and `profiles` (`auth.uid() = id`).
+`reviews` is the one narrowing: SELECT and INSERT as usual, no DELETE at all, and an UPDATE
+policy that a trigger restricts to the `undone_at` tombstone.
 
 The Edge Function calls Supabase **with the caller's JWT**, not the service role key, so RLS
 applies to generated inserts too. The service role key is not used in v1 at all — if a future
@@ -351,9 +377,16 @@ stays invisible until much later.
 
 ```sql
 create function review_card(p_card_id uuid, p_rating smallint, p_duration_ms int,
-                            p_next jsonb) returns cards ...
--- Inserts the reviews row from the card's current state, then applies p_next.
--- security invoker so RLS applies. Rejects a rating if the card's updated_at has moved.
+                            p_expected_updated_at timestamptz, p_next jsonb)
+  returns cards ...
+-- Locks the card, inserts the reviews row from its current state, then applies p_next.
+-- security invoker so RLS applies. Raises PT409 if the card's updated_at has moved
+-- (two tabs), PT404 if the card is not the caller's, and validates every p_next key
+-- explicitly — RLS checks who you are, never what you sent.
+
+create function undo_last_review(p_card_id uuid) returns cards ...
+-- Restores the newest non-undone review's *_before snapshot onto the card and
+-- tombstones that review. Also security invoker.
 ```
 
 Design points:
@@ -364,6 +397,17 @@ Design points:
   Reviews are never starved by new cards.
 - **Suspend/bury:** `status = 'suspended'` removes a card from queues without deleting it.
 - **Fuzz** enabled (a `ts-fsrs` option) so cards created together do not clump forever.
+  ts-fsrs seeds it from the card, so the same card previewed twice gives the same answer —
+  which is what lets the rating buttons promise "Good → 4d" and then honour it.
+- **Short-term (re)learning steps** stay enabled — the library default. That requires
+  persisting `cards.learning_steps`: without it every learning card restarts at step 0 on
+  each review, so a card rated Good repeatedly loops on the 10-minute step and never
+  graduates. The alternative, `enable_short_term: false`, was rejected because it retires
+  the `learning` and `relearning` states entirely, and §4.4 reports a distribution over all
+  four.
+- **Lapses** count every `Again`. ts-fsrs counts one only from the `review` state; the
+  simpler rule is the app's, enforced in `review_card`, and `lapses` is a display counter
+  that the FSRS model never reads. What matters is that it is counted in exactly one place.
 - **Parameter optimisation** is post-v1, but the log makes it possible without migration. It
   needs roughly 1,000 reviews to be meaningful, so expect to enable it months in.
 
@@ -681,7 +725,7 @@ concrete payoff of the TypeScript decision.
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                         | ✅ build + typecheck + 38 tests green; RLS isolation test passes                     |
 | **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                    | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501` |
-| **P1 — Core loop, no LLM**   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls                                             | A hand-built deck schedules correctly across a week                                  |
+| **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                     | ✅ 156 tests green; simulated week schedules correctly; undo restores exactly        |
 | **P2 — Generation**          | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                    | Paste text → 20 cards streamed → accept → practice                                   |
 | **P3 — Progress**            | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                         | Dashboard reflects real review history                                               |
 | **P4 — Ship**                | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | A stranger can sign up and get value                                                 |

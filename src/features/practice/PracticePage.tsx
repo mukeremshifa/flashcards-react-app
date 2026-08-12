@@ -1,0 +1,148 @@
+import { Link, useParams } from 'react-router-dom';
+import { CoffeeIcon, InboxIcon } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/EmptyState';
+import { formatDurationWords } from '@/lib/format';
+import { useDeck, usePracticeQueue, useProfile } from '@/lib/queries';
+import { resolveTimeZone, startOfNextStudyDay } from '@/lib/day';
+import { PracticeSession } from './PracticeSession';
+
+export function PracticePage() {
+  const { deckId } = useParams<{ deckId?: string }>();
+  const deck = useDeck(deckId);
+  const { data: profile } = useProfile();
+  const queue = usePracticeQueue(deckId);
+
+  if (queue.isPending || !queue.data) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  if (queue.isError) {
+    return (
+      <EmptyState
+        title="Could not load the queue"
+        description={(queue.error as Error).message}
+        action={<Button onClick={() => void queue.refetch()}>Try again</Button>}
+      />
+    );
+  }
+
+  const { cards, nextDueAt, heldBackNew } = queue.data;
+
+  if (cards.length === 0) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <NothingDue
+          nextDueAt={nextDueAt}
+          heldBackNew={heldBackNew}
+          timeZone={resolveTimeZone(profile?.timezone)}
+          deckId={deckId}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {deck.data && (
+        <p className="text-muted-foreground text-center text-sm">{deck.data.title}</p>
+      )}
+      <PracticeSession
+        // A new queue is a new session: reset the local state rather than
+        // carrying a half-finished one into it.
+        key={queue.data.fetchedAt}
+        queue={queue.data}
+        deckId={deckId}
+        onRefetch={() => void queue.refetch()}
+      />
+    </div>
+  );
+}
+
+/**
+ * The highest-value empty state in the app.
+ *
+ * A user with a healthy schedule sees this most days, and "nothing due" alone
+ * reads like something is broken. Saying when the next card arrives turns it
+ * into a finished to-do list.
+ */
+function NothingDue({
+  nextDueAt,
+  heldBackNew,
+  timeZone,
+  deckId,
+}: {
+  nextDueAt: string | null;
+  heldBackNew: number;
+  timeZone: string;
+  deckId?: string;
+}) {
+  const now = new Date();
+
+  if (heldBackNew > 0) {
+    const resetsAt = startOfNextStudyDay(now, timeZone);
+    return (
+      <EmptyState
+        icon={<CoffeeIcon />}
+        title="Done for today"
+        description={
+          <>
+            {heldBackNew} new {heldBackNew === 1 ? 'card is' : 'cards are'} waiting, held
+            back by today&rsquo;s limit. They unlock in{' '}
+            {formatDurationWords(resetsAt.getTime() - now.getTime())}.
+          </>
+        }
+        action={
+          <Button asChild variant="outline">
+            <Link to="/settings">Raise the daily limit</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (nextDueAt) {
+    return (
+      <EmptyState
+        icon={<CoffeeIcon />}
+        title="Nothing due"
+        description={
+          <>
+            The next card is due in{' '}
+            <span className="text-foreground font-medium">
+              {formatDurationWords(new Date(nextDueAt).getTime() - now.getTime())}
+            </span>
+            . Reviewing early does not help — that is the point of the schedule.
+          </>
+        }
+        action={
+          <Button asChild variant="outline">
+            <Link to="/decks">Back to decks</Link>
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <EmptyState
+      icon={<InboxIcon />}
+      title="No cards to practise yet"
+      description="Add a few cards and they will appear here straight away."
+      action={
+        <Button asChild>
+          <Link to={deckId ? `/decks/${deckId}` : '/decks'}>
+            {deckId ? 'Add cards to this deck' : 'Go to decks'}
+          </Link>
+        </Button>
+      }
+    />
+  );
+}

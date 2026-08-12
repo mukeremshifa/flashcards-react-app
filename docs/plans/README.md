@@ -41,12 +41,17 @@ authored against the codebase it will actually run in.
 | ---------------- | -------------------------------------- | -------------------------- |
 | P0 — Reset       | _(executed inline, no plan file)_      | ✅ Complete — 2026-08-12   |
 | P0b — Cloud link | [P0b-cloud-link.md](P0b-cloud-link.md) | ✅ Complete — 2026-08-12   |
-| P1 — Core loop   | [P1-core-loop.md](P1-core-loop.md)     | 📋 Ready to execute        |
-| P2 — Generation  | _not yet written_                      | Written at the close of P1 |
+| P1 — Core loop   | [P1-core-loop.md](P1-core-loop.md)     | ✅ Complete — 2026-08-12   |
+| P2 — Generation  | [P2-generation.md](P2-generation.md)   | 📋 Ready to execute        |
 | P3 — Progress    | _not yet written_                      | Written at the close of P2 |
 | P4 — Ship        | _not yet written_                      | Written at the close of P3 |
 
-P0b is done, so **P1 has no external blockers** — the database is live, typed, and
-RLS-verified. Note the split that still matters day to day: schema and RLS changes are
-testable locally against PGlite (`npm test`), but anything touching Supabase Auth needs the
-real project, because the harness only stubs `auth.users`.
+The split that still matters day to day: schema and RLS changes are testable locally
+against PGlite (`npm test`), but anything touching Supabase Auth needs the real project,
+because the harness only stubs `auth.users`.
+
+**One thing carries from P1 into P2:** its migration
+(`supabase/migrations/20260812093000_review_card.sql`) is written and tested but **not
+pushed** — that is the owner's call, and `src/types/database.ts` carries its columns by hand
+until it happens. P2 tasks 1–3 do not care; task 4 onwards does. Run `supabase db push`
+then `npm run db:types` and delete the note at the top of that file.

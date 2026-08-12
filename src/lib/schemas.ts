@@ -139,6 +139,49 @@ export function parseCloze(text: string): ClozeSegment[] {
 }
 
 // ---------------------------------------------------------------------------
+// Decks and profile settings
+//
+// Same rule as cards: one definition, used by the form, the mutation, and any
+// later server-side caller. The bounds mirror the check constraints in
+// supabase/migrations — a value the database would reject should fail in the
+// form, not after a round trip.
+// ---------------------------------------------------------------------------
+
+export const DeckInput = z.object({
+  title: z.string().trim().min(1, 'Give the deck a title').max(200),
+  description: z.string().trim().max(2000).optional(),
+});
+export type DeckInput = z.infer<typeof DeckInput>;
+
+export const Credentials = z.object({
+  email: z.string().trim().min(1, 'Email is required').email('That is not an email'),
+  // Supabase enforces its own minimum server-side; matching it here turns a
+  // round-trip error into an inline one. Nothing longer is imposed: password
+  // rules that fight a password manager make passwords worse, not better.
+  password: z.string().min(6, 'At least 6 characters'),
+});
+export type Credentials = z.infer<typeof Credentials>;
+
+export const SignupInput = Credentials.extend({
+  display_name: z.string().trim().max(100).optional(),
+});
+export type SignupInput = z.infer<typeof SignupInput>;
+
+export const ProfileSettings = z.object({
+  display_name: z.string().trim().max(100).optional(),
+  /** An IANA zone name. It defines every day boundary in the app (SPEC §6). */
+  timezone: z.string().trim().min(1, 'Pick a timezone'),
+  daily_new_limit: z.coerce
+    .number()
+    .int('Whole cards only')
+    .min(0, 'Cannot be negative')
+    .max(500, 'At most 500 a day'),
+});
+export type ProfileSettings = z.infer<typeof ProfileSettings>;
+/** What the *form* holds before coercion — a number input yields a string. */
+export type ProfileSettingsInput = z.input<typeof ProfileSettings>;
+
+// ---------------------------------------------------------------------------
 // Generation request / streamed response
 // ---------------------------------------------------------------------------
 
