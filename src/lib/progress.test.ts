@@ -153,7 +153,10 @@ describe('day bucketing', () => {
 });
 
 describe('retention', () => {
-  const window = { from: new Date('2026-08-01T00:00:00Z'), to: new Date('2026-08-31T00:00:00Z') };
+  const window = {
+    from: new Date('2026-08-01T00:00:00Z'),
+    to: new Date('2026-08-31T00:00:00Z'),
+  };
 
   it('is null, not zero, when nothing has been reviewed', () => {
     const result = retention(countable([]), window);
@@ -329,7 +332,12 @@ describe('forecast', () => {
   it('buckets by study day and drops anything past the horizon', () => {
     const days = forecast(cards, from, 30, { timeZone, newToday: 0 });
 
-    expect(days[2]).toMatchObject({ day: '2026-08-14', review: 1, relearning: 1, total: 2 });
+    expect(days[2]).toMatchObject({
+      day: '2026-08-14',
+      review: 1,
+      relearning: 1,
+      total: 2,
+    });
     expect(days.reduce((sum, day) => sum + day.total, 0)).toBe(4);
   });
 
@@ -397,7 +405,10 @@ describe('heatmapGrid', () => {
     // Wednesday is row 3, so Thursday to Saturday have not happened yet.
     expect(lastColumn.filter(cell => cell.day === null)).toHaveLength(3);
     expect(
-      grid.columns.slice(1, -1).flat().filter(cell => cell.day === null),
+      grid.columns
+        .slice(1, -1)
+        .flat()
+        .filter(cell => cell.day === null),
     ).toHaveLength(0);
   });
 
