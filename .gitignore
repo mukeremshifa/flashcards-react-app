@@ -36,3 +36,6 @@ dist-ssr/
 
 # Keep the env template tracked even though .env.* is ignored above.
 !.env.example
+
+# TypeScript incremental build info
+*.tsbuildinfo
