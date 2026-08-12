@@ -6,6 +6,8 @@ import { ProtectedRoute, PublicOnlyRoute } from '@/features/auth/ProtectedRoute'
 import { DashboardPage } from '@/features/decks/DashboardPage';
 import { DeckDetailPage } from '@/features/decks/DeckDetailPage';
 import { DecksPage } from '@/features/decks/DecksPage';
+import { CreateFromTextPage } from '@/features/generate/CreateFromTextPage';
+import { ReviewGatePage } from '@/features/generate/ReviewGatePage';
 import { PracticePage } from '@/features/practice/PracticePage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 
@@ -17,7 +19,7 @@ import { SettingsPage } from '@/features/settings/SettingsPage';
  * added later that quietly skips it.
  *
  * The routes still showing a placeholder belong to phases that have not run:
- * generation is P2, the progress dashboard is P3.
+ * the progress dashboard is P3.
  */
 export function AppRoutes() {
   return (
@@ -36,22 +38,8 @@ export function AppRoutes() {
         <Route path="decks" element={<DecksPage />} />
         <Route path="decks/:deckId" element={<DeckDetailPage />} />
 
-        <Route
-          path="create/text"
-          element={
-            <PagePlaceholder title="Create from text" phase="P2">
-              <p>Paste text, choose card count and kinds, stream generated cards.</p>
-            </PagePlaceholder>
-          }
-        />
-        <Route
-          path="create/review/:deckId"
-          element={
-            <PagePlaceholder title="Review gate" phase="P2">
-              <p>Approve, edit, or reject each draft card before it enters the deck.</p>
-            </PagePlaceholder>
-          }
-        />
+        <Route path="create/text" element={<CreateFromTextPage />} />
+        <Route path="create/review/:deckId" element={<ReviewGatePage />} />
 
         <Route path="practice" element={<PracticePage />} />
         <Route path="practice/:deckId" element={<PracticePage />} />

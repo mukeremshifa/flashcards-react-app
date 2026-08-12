@@ -3,9 +3,14 @@
 Generate flashcards from your notes with an LLM, then review them with real spaced
 repetition (FSRS) and progress tracking derived from an append-only review log.
 
-**Current state: P0 complete.** The scaffold, schema, and RLS policies exist and are
-tested; the app itself is route placeholders. See [docs/SPEC.md](docs/SPEC.md) for the
-full specification and [docs/plans/](docs/plans/) for per-phase execution plans.
+**Current state: P2 complete.** Accounts, decks, cards of all three kinds, FSRS practice
+with undo, and generation: paste text and cards stream in over SSE, are written as drafts,
+and pass through a review gate before they enter a deck. `/progress` is still a
+placeholder (P3). See [docs/SPEC.md](docs/SPEC.md) for the full specification and
+[docs/plans/](docs/plans/) for per-phase execution plans.
+
+One step is the owner's and is not done: the Edge Function needs a Groq key and a
+deploy — see [Generation](#generation) below.
 
 ## Stack
 
@@ -34,6 +39,8 @@ than failing later as an opaque 401.
 | `npm test`          | Vitest — unit tests plus RLS/schema tests against in-process Postgres |
 | `npm run db:push`   | Apply `supabase/migrations` to the linked project                     |
 | `npm run db:types`  | Regenerate `src/types/database.ts` from the linked project            |
+| `npm run fn:check`  | Typecheck the Edge Function with Deno (what `tsc` cannot see)         |
+| `npm run fn:deploy` | Deploy `generate-cards` to the linked project                         |
 
 ## Tests without Docker
 
@@ -90,6 +97,34 @@ Two structural decisions worth knowing before you change anything:
    the write if the card moved since the client loaded it. Half of a rating is worse
    than none, because it corrupts a schedule silently.
 
+## Generation
+
+`supabase/functions/generate-cards` is the only Edge Function. It authenticates the
+caller's JWT, checks quota, streams NDJSON from Groq, validates each line with the _same_
+Zod schemas the browser uses, writes each card as a `draft` row, and re-emits it as an SSE
+frame. The pipeline is SPEC §7; the client half is `src/features/generate/`.
+
+**Shared code, not copied code.** `supabase/functions/_shared/*.ts` re-exports
+`src/lib/schemas.ts`, `ndjson.ts`, `sse.ts`, `quota.ts`, `generate.ts` and `fsrs.ts` by
+relative path. Deno needs the `.ts` extension on those imports, which is why
+`tsconfig.app.json` sets `allowImportingTsExtensions` — Vite resolves both forms, Deno only
+one. `npm test` therefore covers the parser and the policy the _function_ runs, not a
+sibling of it.
+
+To bring it up on a fresh project:
+
+```bash
+npx supabase secrets set GROQ_API_KEY=gsk_...            # from console.groq.com
+npx supabase secrets set GENERATION_MODEL=llama-3.3-70b-versatile
+npm run fn:check                                          # Deno typecheck
+npm run fn:deploy                                         # deploys with --use-api
+```
+
+`--use-api` is not optional: it is the supported way to bundle a function that imports
+files from outside `supabase/`, which this one does by design. Without the secrets the
+function answers 503 with a readable message rather than failing obscurely, and
+`GENERATION_ENABLED=false` turns the feature off without a deploy.
+
 ## Keys and secrets
 
 This project uses Supabase's **modern key system** — `sb_publishable_…` and
@@ -106,4 +141,7 @@ anyone who reads the shipped JavaScript. `src/lib/env-schema.ts` refuses to star
 if it finds one, and that refusal is covered by tests.
 
 The generation provider key is likewise not a client value — it is set as an Edge Function
-secret (`supabase secrets set GROQ_API_KEY=…`) and never reaches the browser.
+secret (`supabase secrets set GROQ_API_KEY=…`) and never reaches the browser. The Edge
+Function builds its Supabase client from the publishable key plus the caller's
+`Authorization` header, and refuses to start if it is handed a secret key, for the same
+reason the browser does.

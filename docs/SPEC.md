@@ -462,7 +462,18 @@ const response = await fetch(GROQ_URL, {
 });
 ```
 
-**The model is a deploy-time env var, not a literal.** Groq's free-tier roster and its
+**Pinned at P2 (2026-08-12): `llama-3.3-70b-versatile`.** Free-tier limits read from
+Groq's own rate-limit page that day: 30 requests/min, 1,000 requests/day, **12,000
+tokens/min**, 100,000 tokens/day, shared across the API key rather than per user. It was
+chosen over `openai/gpt-oss-120b` — the only free-tier family with strict `json_schema`
+support — for two reasons that both come from the numbers: 12,000 TPM against 8,000 means
+a 20,000-character paste plus a 4,096-token answer fits inside one minute's budget rather
+than exceeding it on its own, and a non-reasoning model starts emitting card text
+immediately instead of spending its first seconds on reasoning tokens, which is what the
+under-5s first card in §10 actually depends on. The `json_schema` support is not lost
+value here: it constrains output to one object, which §7.3 does not want.
+
+**The model is still a deploy-time env var, not a literal.** Groq's free-tier roster and its
 per-model rate limits change often enough that hardcoding a name here would be stale
 before P2 ships. The P2 task is: read the current model list and free-tier limits from
 Groq's own console/docs, pick the strongest instruction-following model that supports
@@ -486,8 +497,10 @@ Notes that matter and are easy to get wrong:
   `response_format: { type: 'json_object' }`, note that it constrains output to a _single_
   JSON object, which conflicts with the NDJSON-per-line contract in §7.3. Either leave
   `response_format` unset and rely on the prompt plus per-line Zod validation, or switch
-  that model to batch mode with a `{"cards":[…]}` object. Decide per model at P2; do not
-  assume both work at once.
+  that model to batch mode with a `{"cards":[…]}` object. **Decided at P2: unset.** The
+  pinned model reaches JSON object mode only, which would collapse the stream into one
+  object; per-line Zod plus a prompt that states the contract twice is what holds the
+  shape, and `src/lib/generate.ts` drops a bad line rather than the batch.
 - **Rate limits are the real constraint, not cost.** A free-tier 429 is normal operating
   behaviour, not an exception. Read `retry-after`, surface `rate_limited` to the client
   (§7.3), and never retry a streaming generation silently — the user is watching a
@@ -563,17 +576,29 @@ moving to a paid provider later needs no migration.
 
 Controls, all enforced in the Edge Function, never client-side:
 
-1. **Input cap** — 20,000 chars per request, hard-rejected before any API call.
-2. **Character ceiling** — `MAX_INPUT_CHARS` (default 32,000) checked before dispatch.
+1. **Input cap** — 20,000 chars per request, hard-rejected before any API call
+   (`GENERATION_LIMITS.maxChars`).
+2. **Character ceiling** — `GENERATION_QUOTA.maxInputChars`, **28,000** as tuned at P2,
+   checked before dispatch and applied to the _assembled_ prompt, system message included.
    Groq has no `count_tokens` endpoint, so this is a character budget; the token figure
-   shown in the UI is an estimate and is never the enforcement mechanism.
-3. **Monthly quota** — default **30 generations per user per month**, counted from
-   `generations`. Worst case ≈ $3.60/user/month on Opus 5.
-4. **Rate limit** — max 3 generations per 60s, and 1 concurrent per user.
-5. **Global kill switch** — `GENERATION_ENABLED` env var, plus a monthly org-wide spend
-   ceiling checked before each call.
-6. Quota state is returned on every generate response so the UI can show remaining budget
-   rather than failing at submit time.
+   shown in the UI is an estimate and is never the enforcement mechanism. The arithmetic:
+   28,000 ÷ 4 chars/token ≈ 7,000 input tokens, plus `max_tokens` 4,096 ≈ 11,100, which is
+   ~92% of the pinned model's 12,000 token/minute ceiling.
+3. **Monthly quota** — **30 generations per user per month**, counted from `generations`.
+   Free tier, so the cost of a generation is $0 and the number is a fair-share limit on the
+   shared key rather than a bill. A row spends an allowance when it produced cards, or
+   while it is still running: a refusal and a failure that returned nothing spend nothing,
+   or the first refusal would make every later request refuse too.
+4. **Rate limit** — max 3 generations per 60s, and 1 concurrent per user. A `running` row
+   older than five minutes is a crashed worker and stops counting, or one lost worker locks
+   a user out permanently.
+5. **Global kill switch** — `GENERATION_ENABLED` env var, checked before anything else.
+   No org-wide spend ceiling: on the free tier there is no spend, and the per-key rate limit
+   is the shared resource being protected.
+6. The client reads the remaining allowance from the same rows with the same filter
+   (`useQuotaUsage`, `quotaCountFilter`) and shows it beside the paste box and in
+   `/settings`, so a refusal is visible before submit rather than after. It is advisory —
+   only the Edge Function can refuse.
 
 ---
 
@@ -609,7 +634,7 @@ Controls, all enforced in the Edge Function, never client-side:
 /practice               all-decks due queue
 /practice/:deckId       single-deck queue
 /progress               heatmap, retention, forecast
-/settings               daily limits, timezone, model pref, quota usage
+/settings               daily limits, timezone, quota usage
 /account
 *                       404
 ```
@@ -721,15 +746,15 @@ concrete payoff of the TypeScript decision.
 
 ## 11. Phasing
 
-| Phase                        | Deliverable                                                                                                                                            | Done when                                                                            |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                         | ✅ build + typecheck + 38 tests green; RLS isolation test passes                     |
-| **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                    | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501` |
-| **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                     | ✅ 157 tests green; simulated week schedules correctly; undo restores exactly        |
-| **P2 — Generation**          | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                    | Paste text → 20 cards streamed → accept → practice                                   |
-| **P3 — Progress**            | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                         | Dashboard reflects real review history                                               |
-| **P4 — Ship**                | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | A stranger can sign up and get value                                                 |
-| **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes | —                                                                                    |
+| Phase                        | Deliverable                                                                                                                                            | Done when                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                         | ✅ build + typecheck + 38 tests green; RLS isolation test passes                                |
+| **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                    | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501`            |
+| **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                     | ✅ 157 tests green; simulated week schedules correctly; undo restores exactly                   |
+| **P2 — Generation** ✅ done  | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                    | ✅ 251 tests green; pipeline built and typechecked under Deno — see docs/plans/P2-generation.md |
+| **P3 — Progress**            | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                         | Dashboard reflects real review history                                                          |
+| **P4 — Ship**                | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | A stranger can sign up and get value                                                            |
+| **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes | —                                                                                               |
 
 **P1 before P2 is deliberate.** The LLM is the exciting part; the scheduler is the part that
 must be right. Building generation on top of an unproven scheduler means debugging both at
@@ -742,24 +767,25 @@ once.
 All settled as of 2026-08-12. Kept here as a decision record rather than deleted, so the
 reasoning behind each is recoverable later.
 
-| #   | Question                   | Resolution                                                                                                 |
-| --- | -------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 1   | Document formats (post-v1) | `.txt`/`.md` first, then PDF text-layer, ≤50 pages                                                         |
-| 2   | Model / provider           | **Groq free tier.** Specific model pinned at P2 from Groq's live roster, via `GENERATION_MODEL` — see §7.2 |
-| 3   | Deployment target          | Vercel for the SPA, Supabase cloud for the backend                                                         |
-| 4   | Timeline                   | None. Phases are ordered, not dated                                                                        |
-| 5   | Cloze multi-group          | One deletion group per card; multi-group notes split at ingest (`splitClozeGroups`)                        |
-| 6   | Offline / PWA              | Desktop web only for v1                                                                                    |
-| 7   | MCQ grading                | Auto-grade into FSRS (correct → Good, wrong → Again), with a manual override                               |
+| #   | Question                   | Resolution                                                                                         |
+| --- | -------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1   | Document formats (post-v1) | `.txt`/`.md` first, then PDF text-layer, ≤50 pages                                                 |
+| 2   | Model / provider           | **Groq free tier**, `llama-3.3-70b-versatile` via `GENERATION_MODEL`, pinned 2026-08-12 — see §7.2 |
+| 3   | Deployment target          | Vercel for the SPA, Supabase cloud for the backend                                                 |
+| 4   | Timeline                   | None. Phases are ordered, not dated                                                                |
+| 5   | Cloze multi-group          | One deletion group per card; multi-group notes split at ingest (`splitClozeGroups`)                |
+| 6   | Offline / PWA              | Desktop web only for v1                                                                            |
+| 7   | MCQ grading                | Auto-grade into FSRS (correct → Good, wrong → Again), with a manual override                       |
 
-### Still genuinely open
+### Closed at P2 (2026-08-12)
 
-- **Which Groq model.** Deliberately unresolved: the free-tier roster and its rate limits
-  move, so this is a P2 task done against Groq's current documentation, not a guess made
-  now. Both the model name and the date it was checked get recorded in the P2 plan.
-- **Free-tier rate limits.** The concrete requests/min and tokens/min figures that
-  `MAX_INPUT_CHARS` and the per-user rate limiter should be tuned against. Same reason,
-  same time.
+- **Which Groq model** — `llama-3.3-70b-versatile`, with the reasoning and the numbers in
+  §7.2. Still an env var, so switching it is a secret change and not a deploy; every
+  `generations` row records the model it used, so a switch stays auditable.
+- **Free-tier rate limits** — 30 RPM / 1,000 RPD / 12,000 TPM / 100,000 TPD, read from
+  Groq's rate-limit page on 2026-08-12. Re-read them before changing `maxInputChars` or the
+  burst limiter; they move, which is why the arithmetic that depends on them is written out
+  in `src/lib/quota.ts` rather than left as bare constants.
 
 ---
 

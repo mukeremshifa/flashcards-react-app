@@ -371,6 +371,21 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# ---------------------------------------------------------------------------
+# generate-cards (SPEC §7) — the only Edge Function in v1.
+#
+# `import_map` is what makes the shared modules resolve: the function imports
+# src/lib/schemas.ts and friends through supabase/functions/_shared, and those
+# files import `zod` and `ts-fsrs` by bare specifier. Deploy with
+# `npm run fn:deploy`, which passes --use-api — the documented way to bundle a
+# function that imports files from outside the supabase/ directory.
+[functions.generate-cards]
+# The caller's JWT is the whole authorisation story (SPEC §5.7): the gateway
+# requires one, and the function verifies it again before touching the database.
+verify_jwt = true
+entrypoint = "./functions/generate-cards/index.ts"
+import_map = "./functions/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

@@ -204,6 +204,8 @@ export const GenerateRequest = z.object({
   depth: z.enum(['recall', 'balanced', 'deep']).default('balanced'),
 });
 export type GenerateRequest = z.infer<typeof GenerateRequest>;
+/** What the *form* holds before defaults and coercion apply. */
+export type GenerateRequestInput = z.input<typeof GenerateRequest>;
 
 /**
  * One NDJSON line as emitted by the model (SPEC §7.3). Deliberately *not* the

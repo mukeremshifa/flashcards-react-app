@@ -7,6 +7,12 @@ import {
 import { supabase } from './supabase';
 import { CardPayload, DeckInput, Grade, ProfileSettings, type CardKind } from './schemas';
 import { applyGrade, newCardScheduling, type SchedulePreview } from './fsrs';
+import {
+  GENERATION_QUOTA,
+  monthWindow,
+  quotaCountFilter,
+  remainingGenerations,
+} from './quota';
 import { resolveTimeZone, startOfStudyDay } from './day';
 import { buildQueue, remainingNewAllowance } from './queue';
 import type { Database } from '@/types/database';
@@ -35,6 +41,9 @@ export const queryKeys = {
   deckCards: (deckId: string) => ['deck', deckId, 'cards'] as const,
   queue: (deckId?: string) => ['queue', deckId ?? 'all'] as const,
   profile: ['profile'] as const,
+  /** Drafts waiting at the review gate, and only those. */
+  deckDrafts: (deckId: string) => ['deck', deckId, 'drafts'] as const,
+  quota: ['quota'] as const,
 };
 
 /**
@@ -164,6 +173,8 @@ export type DeckWithCounts = DeckRow & {
   cardCount: number;
   dueCount: number;
   newCount: number;
+  /** Generated cards still waiting at the review gate (SPEC §4.1 step 5). */
+  draftCount: number;
 };
 
 /**
@@ -188,17 +199,30 @@ export function useDecks() {
       const counters = unwrap(
         await supabase
           .from('cards')
-          .select('deck_id, fsrs_state, due')
-          .eq('status', 'active'),
+          .select('deck_id, status, fsrs_state, due')
+          // Drafts come along for the ride: a deck abandoned part-way through
+          // the review gate has to be findable from the deck list, and it has no
+          // active cards to advertise itself with (SPEC §4.1).
+          .in('status', ['active', 'draft']),
       );
 
       const now = Date.now();
-      const byDeck = new Map<string, { cards: number; due: number; fresh: number }>();
+      type Bucket = { cards: number; due: number; fresh: number; drafts: number };
+      const byDeck = new Map<string, Bucket>();
       for (const card of counters) {
-        const bucket = byDeck.get(card.deck_id) ?? { cards: 0, due: 0, fresh: 0 };
-        bucket.cards += 1;
-        if (card.fsrs_state === 'new') bucket.fresh += 1;
-        else if (new Date(card.due).getTime() <= now) bucket.due += 1;
+        const bucket = byDeck.get(card.deck_id) ?? {
+          cards: 0,
+          due: 0,
+          fresh: 0,
+          drafts: 0,
+        };
+        if (card.status === 'draft') {
+          bucket.drafts += 1;
+        } else {
+          bucket.cards += 1;
+          if (card.fsrs_state === 'new') bucket.fresh += 1;
+          else if (new Date(card.due).getTime() <= now) bucket.due += 1;
+        }
         byDeck.set(card.deck_id, bucket);
       }
 
@@ -209,6 +233,7 @@ export function useDecks() {
           cardCount: bucket?.cards ?? 0,
           dueCount: bucket?.due ?? 0,
           newCount: bucket?.fresh ?? 0,
+          draftCount: bucket?.drafts ?? 0,
         };
       });
     },
@@ -724,6 +749,152 @@ export function useDueSummary() {
         nextDueAt: upcoming.data[0]?.due ?? null,
       };
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Generation: drafts, the review gate, and quota
+//
+// The cards themselves are written by the Edge Function, not from here
+// (SPEC §7.1) — it holds the caller's JWT and inserts under the same policies.
+// What the client owns is everything after: reading the drafts back, accepting
+// or rejecting them, and showing how much of the monthly allowance is left.
+// ---------------------------------------------------------------------------
+
+/** The drafts a generation left behind, oldest first — the review gate's queue. */
+export function useDraftCards(deckId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.deckDrafts(deckId ?? ''),
+    enabled: Boolean(deckId),
+    queryFn: async (): Promise<CardRow[]> => {
+      const result = await supabase
+        .from('cards')
+        .select(CARD_COLUMNS)
+        .eq('deck_id', deckId!)
+        .eq('status', 'draft')
+        .order('created_at', { ascending: true });
+      return unwrap(result);
+    },
+    // A generation may still be streaming into this deck; a stale list here is
+    // the difference between "resume where you left off" and "half your cards
+    // are missing".
+    staleTime: 0,
+  });
+}
+
+/**
+ * Accept drafts: `draft` → `active`, and nothing else.
+ *
+ * An update, not an insert — the rows already exist, written as they streamed
+ * in — and it deliberately leaves the scheduling columns alone. The card was
+ * created with fresh-card state, so accepting it drops it straight into the
+ * `new` queue where P1's practice loop finds it, with no change to fsrs.ts or
+ * `review_card` (SPEC §4.1 step 6).
+ */
+export function useAcceptDrafts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      cardIds,
+      deckId: _deckId,
+    }: {
+      cardIds: string[];
+      deckId: string;
+    }) => {
+      const result = await supabase
+        .from('cards')
+        .update({ status: 'active' })
+        .in('id', cardIds)
+        .eq('status', 'draft')
+        .select('id');
+      return unwrap(result);
+    },
+    onSuccess: (_rows, variables) => invalidateCardCaches(queryClient, variables.deckId),
+  });
+}
+
+/**
+ * Close the gate: the deck becomes an ordinary deck, and the audit row learns
+ * how many of its cards survived.
+ *
+ * `cards_accepted` is counted from the cards rather than tallied in the UI, so
+ * resuming an abandoned gate later corrects the number instead of double
+ * counting it. SPEC §13 (2) measures the product on this figure — "fewer than
+ * 20% rejected" — which is only worth measuring if it reflects the deck.
+ */
+export function useFinishReviewGate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ deckId }: { deckId: string }) => {
+      const accepted = await supabase
+        .from('cards')
+        .select('id', { count: 'exact', head: true })
+        .eq('deck_id', deckId)
+        .eq('status', 'active');
+      if (accepted.error) throw accepted.error;
+
+      const deck = await supabase
+        .from('decks')
+        .update({ status: 'active' })
+        .eq('id', deckId)
+        .select()
+        .single();
+
+      // Best effort by design: the generation row is an audit trail, and failing
+      // to stamp it must not leave the user staring at a deck that will not
+      // leave the review gate.
+      await supabase
+        .from('generations')
+        .update({ cards_accepted: accepted.count ?? 0 })
+        .eq('deck_id', deckId);
+
+      return unwrap(deck);
+    },
+    onSuccess: deck => {
+      queryClient.setQueryData(queryKeys.deck(deck.id), deck);
+      invalidateCardCaches(queryClient, deck.id);
+    },
+  });
+}
+
+export type QuotaUsage = {
+  used: number;
+  remaining: number;
+  limit: number;
+  /** When the allowance resets — the 1st of next month, UTC. */
+  resetsAt: string;
+};
+
+/**
+ * How much of the monthly allowance is gone (SPEC §4.1 step 3).
+ *
+ * Advisory: the Edge Function counts the same rows with the same filter and is
+ * the only thing that can actually refuse. Showing the number here is what stops
+ * the refusal being a surprise at submit time.
+ */
+export function useQuotaUsage() {
+  return useQuery({
+    queryKey: queryKeys.quota,
+    queryFn: async (): Promise<QuotaUsage> => {
+      const now = new Date();
+      const month = monthWindow(now);
+      const result = await supabase
+        .from('generations')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', month.start.toISOString())
+        .lt('created_at', month.end.toISOString())
+        .or(quotaCountFilter(now));
+      if (result.error) throw result.error;
+
+      const used = result.count ?? 0;
+      return {
+        used,
+        remaining: remainingGenerations(used),
+        limit: GENERATION_QUOTA.monthlyGenerations,
+        resetsAt: month.end.toISOString(),
+      };
+    },
+    staleTime: 30_000,
   });
 }
 

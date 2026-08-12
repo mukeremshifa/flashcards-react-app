@@ -10,7 +10,7 @@ import {
   type Grade as FsrsGrade,
   type RecordLogItem,
 } from 'ts-fsrs';
-import { Grade } from './schemas';
+import { Grade } from './schemas.ts';
 
 /**
  * The scheduler, wrapped once.

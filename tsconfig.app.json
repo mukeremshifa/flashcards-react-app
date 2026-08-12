@@ -24,7 +24,12 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
-    "allowImportingTsExtensions": false,
+    /* True for one reason: four files under src/lib are imported *by the Deno
+       Edge Function* through supabase/functions/_shared, and Deno resolves a
+       relative import only with its extension. Writing "./schemas.ts" in those
+       files is what lets the function share the real module instead of a copy
+       (SPEC §9). Everything Vite bundles is unaffected — it resolves both. */
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "paths": {

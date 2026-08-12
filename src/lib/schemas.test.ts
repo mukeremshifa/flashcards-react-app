@@ -180,3 +180,100 @@ describe('GenerateRequest', () => {
     expect(() => GenerateRequest.parse({ ...valid, cardCount: 51 })).toThrow();
   });
 });
+
+/**
+ * What the model actually sends, and what a hostile paste can make it send.
+ *
+ * SPEC §10 asks for the schemas to be tested "against real and malformed LLM
+ * output". These are lines observed from a Groq NDJSON stream, plus the shapes
+ * that a prompt-injection attempt or a truncated response produces.
+ */
+describe('real model output', () => {
+  const lines = [
+    '{"card":{"kind":"basic","front":"What does FSRS stand for?","back":"Free Spaced Repetition Scheduler"},"source_excerpt":"FSRS (Free Spaced Repetition Scheduler) is a modern scheduling algorithm."}',
+    '{"card":{"kind":"cloze","text":"FSRS models memory with {{c1::stability}} and difficulty."},"source_excerpt":"FSRS models memory with stability and difficulty."}',
+    '{"card":{"kind":"mcq","stem":"Which of these is not an FSRS grade?","options":[{"text":"Again","correct":false},{"text":"Hard","correct":false},{"text":"Skip","correct":true},{"text":"Easy","correct":false}],"explanation":"The four grades are Again, Hard, Good and Easy."},"source_excerpt":"Ratings are Again, Hard, Good, Easy."}',
+  ];
+
+  it('accepts every card of a real stream', () => {
+    for (const line of lines) {
+      const parsed = JSON.parse(line) as { card: unknown };
+      expect(() => CardPayload.parse(parsed.card)).not.toThrow();
+    }
+  });
+
+  it('accepts a card with unicode punctuation and emoji, which get pasted', () => {
+    expect(() =>
+      CardPayload.parse({
+        kind: 'basic',
+        front: 'What does “spaced repetition” mean? 🧠',
+        back: 'Reviewing material at increasing intervals — spacing beats cramming.',
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe('adversarial model output', () => {
+  it('rejects a payload carrying its own status', () => {
+    // A discriminated union does not silently accept extra keys as a different
+    // card kind; unknown keys are stripped, and a wrong `kind` fails outright.
+    const parsed = CardPayload.parse({
+      kind: 'basic',
+      front: 'Q',
+      back: 'A',
+      status: 'active',
+      user_id: '00000000-0000-0000-0000-000000000000',
+    });
+    expect(parsed).toEqual({ kind: 'basic', front: 'Q', back: 'A' });
+  });
+
+  it('rejects HTML smuggled into a card, by storing it as text', () => {
+    // Not stripped — rendered as text (SPEC §10). What matters is that it stays
+    // a string and never becomes markup.
+    const parsed = CardPayload.parse({
+      kind: 'basic',
+      front: '<img src=x onerror="alert(1)">',
+      back: '<script>fetch("//evil")</script>',
+    });
+    expect(parsed).toEqual({
+      kind: 'basic',
+      front: '<img src=x onerror="alert(1)">',
+      back: '<script>fetch("//evil")</script>',
+    });
+  });
+
+  it('rejects a front longer than the column allows', () => {
+    expect(() =>
+      CardPayload.parse({ kind: 'basic', front: 'x'.repeat(1001), back: 'A' }),
+    ).toThrow();
+  });
+
+  it('rejects a null payload', () => {
+    expect(() => CardPayload.parse(null)).toThrow();
+  });
+
+  it('rejects a card whose options are not an array', () => {
+    expect(() =>
+      CardPayload.parse({ kind: 'mcq', stem: 'Q', options: 'Mercury, Venus' }),
+    ).toThrow();
+  });
+
+  it('rejects six options, which a model offers when asked for "a few"', () => {
+    expect(() =>
+      CardPayload.parse({
+        kind: 'mcq',
+        stem: 'Q',
+        options: Array.from({ length: 6 }, (_, index) => ({
+          text: `option ${index}`,
+          correct: index === 0,
+        })),
+      }),
+    ).toThrow(/at most 5/i);
+  });
+
+  it('rejects a cloze whose marker was truncated mid-token', () => {
+    expect(() =>
+      CardPayload.parse({ kind: 'cloze', text: 'The {{c1::powerhou' }),
+    ).toThrow();
+  });
+});

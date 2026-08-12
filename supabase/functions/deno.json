@@ -1,0 +1,17 @@
+{
+  "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
+  "imports": {
+    "zod": "npm:zod@^4.4.3",
+    "ts-fsrs": "npm:ts-fsrs@^5.4.1",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@^2.112.3"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  }
+}

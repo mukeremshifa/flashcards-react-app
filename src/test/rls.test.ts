@@ -102,6 +102,38 @@ describe('cross-user isolation', () => {
     ).rejects.toThrow(/row-level security/i);
   });
 
+  it("hides Alice's generated drafts from Bob", async () => {
+    // The review gate reads `status = 'draft'` rows before they are anything a
+    // user has approved. They are written by the Edge Function under Alice's own
+    // JWT, so they are hers on exactly the same terms as any other card — and a
+    // draft leaking is a breach in the same way a card is.
+    await db.actAs(alice);
+    await db.raw.query(
+      `insert into cards (user_id, deck_id, kind, payload, status, source_excerpt)
+       values ($1, $2, 'basic', '{"kind":"basic","front":"draft f","back":"draft b"}'::jsonb,
+               'draft', 'from Alice''s source text')`,
+      [alice, aliceDeck],
+    );
+
+    await db.actAs(bob);
+    const visible = await db.raw.query("select id from cards where status = 'draft'");
+    expect(visible.rows).toEqual([]);
+
+    // Nor may he accept one into existence, or delete it out of hers.
+    const accepted = await db.raw.query(
+      "update cards set status = 'active' where status = 'draft'",
+    );
+    expect(accepted.affectedRows).toBe(0);
+    const deleted = await db.raw.query("delete from cards where status = 'draft'");
+    expect(deleted.affectedRows).toBe(0);
+
+    await db.actAs(alice);
+    const mine = await db.raw.query<{ status: string }>(
+      "select status from cards where status = 'draft'",
+    );
+    expect(mine.rows).toHaveLength(1);
+  });
+
   it("stops Bob reading Alice's generation history", async () => {
     await db.actAs(alice);
     await db.raw.query(

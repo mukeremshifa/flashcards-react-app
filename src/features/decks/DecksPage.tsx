@@ -3,7 +3,14 @@ import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { LayersIcon, PlayIcon, PlusIcon, SearchIcon, TrashIcon } from 'lucide-react';
+import {
+  LayersIcon,
+  PlayIcon,
+  PlusIcon,
+  SearchIcon,
+  SparklesIcon,
+  TrashIcon,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,9 +51,16 @@ export function DecksPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Decks</h1>
-        <Button onClick={() => setCreating(value => !value)}>
-          <PlusIcon /> New deck
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/create/text">
+              <SparklesIcon /> Generate
+            </Link>
+          </Button>
+          <Button onClick={() => setCreating(value => !value)}>
+            <PlusIcon /> New deck
+          </Button>
+        </div>
       </header>
 
       {creating && (
@@ -90,7 +104,16 @@ export function DecksPage() {
           title="No decks yet"
           description="A deck is a set of cards you practise together — one per subject works well."
           action={
-            <Button onClick={() => setCreating(true)}>Create your first deck</Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button asChild>
+                <Link to="/create/text">
+                  <SparklesIcon /> Generate from text
+                </Link>
+              </Button>
+              <Button variant="outline" onClick={() => setCreating(true)}>
+                Create an empty deck
+              </Button>
+            </div>
           }
         />
       ) : filtered.length === 0 ? (
@@ -145,6 +168,10 @@ export function DecksPage() {
 
 function DeckRow({ deck, onDelete }: { deck: DeckWithCounts; onDelete: () => void }) {
   const ready = deck.dueCount + deck.newCount;
+  const generating = deck.status === 'generating';
+  // A generation that was interrupted leaves drafts behind. This is the way back
+  // into the review gate (SPEC §4.1: abandoning leaves a resumable draft deck).
+  const resumable = deck.draftCount > 0;
 
   return (
     <Card className="py-4">
@@ -160,17 +187,33 @@ function DeckRow({ deck, onDelete }: { deck: DeckWithCounts; onDelete: () => voi
             {plural(deck.cardCount, 'card')}
             {deck.dueCount > 0 && ` · ${deck.dueCount} due`}
             {deck.newCount > 0 && ` · ${deck.newCount} new`}
+            {resumable && ` · ${deck.draftCount} waiting to be reviewed`}
           </p>
         </div>
 
-        {ready > 0 ? (
+        {generating ? (
+          <Badge variant="secondary">Writing cards…</Badge>
+        ) : resumable ? (
+          <Badge variant="secondary">{deck.draftCount} to review</Badge>
+        ) : ready > 0 ? (
           <Badge variant="secondary">{ready} ready</Badge>
         ) : (
           <Badge variant="outline">Up to date</Badge>
         )}
 
         <div className="flex gap-1">
-          <Button asChild size="sm" variant={ready > 0 ? 'default' : 'outline'}>
+          {resumable && (
+            <Button asChild size="sm">
+              <Link to={`/create/review/${deck.id}`}>
+                <SparklesIcon /> Review cards
+              </Link>
+            </Button>
+          )}
+          <Button
+            asChild
+            size="sm"
+            variant={ready > 0 && !resumable ? 'default' : 'outline'}
+          >
             <Link to={`/practice/${deck.id}`}>
               <PlayIcon /> Practise
             </Link>

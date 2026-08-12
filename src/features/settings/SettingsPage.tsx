@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -16,8 +17,9 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { detectTimeZone, DAY_BOUNDARY_HOUR, isValidTimeZone } from '@/lib/day';
+import { formatDate } from '@/lib/format';
 import { ProfileSettings, type ProfileSettingsInput } from '@/lib/schemas';
-import { useProfile, useUpdateProfile } from '@/lib/queries';
+import { useProfile, useQuotaUsage, useUpdateProfile } from '@/lib/queries';
 import { useAuth } from '@/features/auth/AuthProvider';
 
 /** Every zone the runtime knows, with a fallback for older ICU builds. */
@@ -31,6 +33,7 @@ export function SettingsPage() {
   const { user, signOut } = useAuth();
   const profile = useProfile();
   const updateProfile = useUpdateProfile();
+  const quota = useQuotaUsage();
   const zones = useMemo(timeZones, []);
 
   // Three generics: the form holds raw input, zod coerces, the submit handler
@@ -144,6 +147,44 @@ export function SettingsPage() {
               {form.formState.isSubmitting ? 'Saving…' : 'Save settings'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Card generation</CardTitle>
+          <CardDescription>
+            How much of this month&rsquo;s allowance is left. The count comes from the
+            generations themselves, so it is what the server will enforce.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {quota.isPending ? (
+            <Skeleton className="h-10 w-48" />
+          ) : quota.isError ? (
+            <p className="text-muted-foreground text-sm">
+              Could not read your generation history.
+            </p>
+          ) : (
+            <>
+              <p className="text-2xl font-semibold tracking-tight">
+                {quota.data.remaining}{' '}
+                <span className="text-muted-foreground text-base font-normal">
+                  of {quota.data.limit} left
+                </span>
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {quota.data.used === 0
+                  ? 'You have not generated any cards this month.'
+                  : `${quota.data.used} used since the 1st.`}{' '}
+                The allowance resets on {formatDate(new Date(quota.data.resetsAt), 'UTC')}{' '}
+                (UTC).
+              </p>
+              <Button variant="outline" asChild>
+                <Link to="/create/text">Generate cards</Link>
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
 
