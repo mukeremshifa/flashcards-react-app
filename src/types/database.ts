@@ -357,6 +357,18 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      review_day_counts: {
+        Args: { p_from: string; p_timezone: string };
+        Returns: {
+          again: number;
+          day: string;
+          easy: number;
+          good: number;
+          hard: number;
+          introduced: number;
+          reviews: number;
+        }[];
+      };
       undo_last_review: {
         Args: { p_card_id: string };
         Returns: {

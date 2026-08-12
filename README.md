@@ -81,6 +81,8 @@ Migrations are plain SQL in `supabase/migrations`, applied in filename order:
   `cards.learning_steps`, and the pre-review snapshot columns on `reviews`
 - `…_revoke_anon_rpc.sql` — takes EXECUTE on those two functions away from `anon`,
   which Supabase's default privileges grant automatically to every new function
+- `…_progress_stats.sql` — `review_day_counts`, the daily aggregate behind `/progress`,
+  closed to `anon` in the same migration for the reason above
 
 Two structural decisions worth knowing before you change anything:
 

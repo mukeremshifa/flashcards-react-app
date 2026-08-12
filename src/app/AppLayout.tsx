@@ -78,7 +78,7 @@ export function AppLayout() {
       </main>
 
       <footer className="text-muted-foreground border-t px-4 py-4 text-center text-xs">
-        Generation and progress arrive in later phases · see docs/SPEC.md
+        Every number on this site is counted from your own review log · see docs/SPEC.md
       </footer>
     </div>
   );

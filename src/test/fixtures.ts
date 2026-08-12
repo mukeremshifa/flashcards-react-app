@@ -1,5 +1,5 @@
 import type { TestDb } from './pg-harness';
-import type { CardScheduling, SchedulingUpdate } from '@/lib/fsrs';
+import type { CardScheduling, FsrsStateName, SchedulingUpdate } from '@/lib/fsrs';
 
 /**
  * Seeding helpers shared by the RPC tests. Everything here runs through the same
@@ -140,4 +140,66 @@ export function schedulingOf(card: CardRow): CardScheduling {
     elapsed_days: card.elapsed_days,
     learning_steps: card.learning_steps,
   };
+}
+
+/**
+ * Insert a `reviews` row directly, at a chosen instant.
+ *
+ * `review_card` stamps `reviewed_at` with `now()`, which is right for the app
+ * and useless for testing an aggregate that buckets by day: a month of history
+ * has to be *placed*, not accumulated. This goes in as the user, so the same RLS
+ * insert policy applies — a row this fixture can write is a row the app could
+ * have written.
+ */
+export async function seedReview(
+  db: TestDb,
+  userId: string,
+  cardId: string,
+  options: {
+    reviewedAt: string | Date;
+    rating?: number;
+    stateBefore?: FsrsStateName;
+    stateAfter?: FsrsStateName;
+    stabilityAfter?: number | null;
+    difficultyAfter?: number | null;
+    undoneAt?: string | Date | null;
+  },
+): Promise<string> {
+  await db.actAs(userId);
+  const at =
+    options.reviewedAt instanceof Date
+      ? options.reviewedAt.toISOString()
+      : options.reviewedAt;
+  const undone =
+    options.undoneAt instanceof Date
+      ? options.undoneAt.toISOString()
+      : (options.undoneAt ?? null);
+
+  const result = await db.raw.query<{ id: string }>(
+    `insert into reviews (
+       user_id, card_id, rating, reviewed_at,
+       state_before, stability_before, difficulty_before, due_before,
+       elapsed_days, scheduled_days,
+       state_after, stability_after, difficulty_after,
+       undone_at
+     ) values (
+       $1, $2, $3::smallint, $4::timestamptz,
+       $5::fsrs_state, null, null, $4::timestamptz,
+       0, 0,
+       $6::fsrs_state, $7, $8,
+       $9::timestamptz
+     ) returning id`,
+    [
+      userId,
+      cardId,
+      options.rating ?? 3,
+      at,
+      options.stateBefore ?? 'review',
+      options.stateAfter ?? 'review',
+      options.stabilityAfter ?? null,
+      options.difficultyAfter ?? null,
+      undone,
+    ],
+  );
+  return result.rows[0]!.id;
 }

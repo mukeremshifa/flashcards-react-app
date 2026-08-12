@@ -746,15 +746,15 @@ concrete payoff of the TypeScript decision.
 
 ## 11. Phasing
 
-| Phase                        | Deliverable                                                                                                                                            | Done when                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                         | ✅ build + typecheck + 38 tests green; RLS isolation test passes                                |
-| **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                    | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501`            |
-| **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                     | ✅ 157 tests green; simulated week schedules correctly; undo restores exactly                   |
-| **P2 — Generation** ✅ done  | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                    | ✅ 251 tests green; pipeline built and typechecked under Deno — see docs/plans/P2-generation.md |
-| **P3 — Progress**            | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                         | Dashboard reflects real review history                                                          |
-| **P4 — Ship**                | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | A stranger can sign up and get value                                                            |
-| **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes | —                                                                                               |
+| Phase                        | Deliverable                                                                                                                                            | Done when                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                         | ✅ build + typecheck + 38 tests green; RLS isolation test passes                                             |
+| **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                    | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501`                         |
+| **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                     | ✅ 157 tests green; simulated week schedules correctly; undo restores exactly                                |
+| **P2 — Generation** ✅ done  | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                    | ✅ 251 tests green; pipeline built and typechecked under Deno — see docs/plans/P2-generation.md              |
+| **P3 — Progress** ✅ done    | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                         | ✅ 299 tests green; SQL day buckets proven equal to `studyDayKey` across DST — see docs/plans/P3-progress.md |
+| **P4 — Ship**                | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | A stranger can sign up and get value                                                                         |
+| **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes | —                                                                                                            |
 
 **P1 before P2 is deliberate.** The LLM is the exciting part; the scheduler is the part that
 must be right. Building generation on top of an unproven scheduler means debugging both at
@@ -786,6 +786,25 @@ reasoning behind each is recoverable later.
   Groq's rate-limit page on 2026-08-12. Re-read them before changing `maxInputChars` or the
   burst limiter; they move, which is why the arithmetic that depends on them is written out
   in `src/lib/quota.ts` rather than left as bare constants.
+
+### Closed at P3 (2026-08-12)
+
+- **Where the day bucketing lives** — in both places, and proven equal. `studyDayKey`
+  stays the client's only answer; `review_day_counts` transcribes it as
+  `(reviewed_at at time zone tz - interval '4 hours')::date` because aggregating a year
+  of reviews in the browser is the wrong shape. `src/test/stats.test.ts` asserts the two
+  agree across DST transitions in both directions, which is the only thing that keeps a
+  second implementation honest.
+- **Heatmap intensity is relative, not absolute** — the five buckets are scaled to the
+  90th percentile of the user's own active days. Fixed thresholds cannot serve both a
+  fifteen-a-day user and a three-hundred-a-day user; one gets a blank year and the other
+  a solid block, and in both cases the chart stops carrying information.
+- **The forecast is computed on the client** — `cards` is small next to `reviews`, only
+  active non-new cards inside the horizon are fetched, and one fewer SQL function is one
+  fewer thing to revoke from `anon`.
+- **Mean stability and difficulty are over cards; the trend is over reviews.** A
+  collection that is growing has a mean that moves for reasons unrelated to memory, so
+  the trend compares the two halves of the review window and the label says so.
 
 ---
 

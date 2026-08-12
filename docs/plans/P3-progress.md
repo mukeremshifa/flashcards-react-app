@@ -197,12 +197,55 @@ means the Groq key has to be configured before the demo can be seeded.
 - The `/progress` route is code-split: the main bundle does not grow by the size of
   Recharts.
 
-## Decisions to record
+## Decisions recorded — closed 2026-08-12
 
-Write these back into this file as the phase closes:
+**Migration filename.** `supabase/migrations/20260812210000_progress_stats.sql`, appended
+to the list in the root `README.md`. Pushed with `npm run db:push` after the dry run
+listed it and nothing else; `src/types/database.ts` regenerated and committed.
 
-- The migration filename, appended to the list in the root `README.md`.
-- Whether the forecast is computed in SQL or on the client, and why.
-- The heatmap's intensity buckets, and what they are relative to (fixed counts, or a
-  percentile of the user's own history).
-- Anything the DST test caught, because it will catch something.
+**The forecast is computed on the client.** `cards` is small next to `reviews`, and the
+query only fetches active, non-new cards whose `due` falls inside the 30-day horizon —
+a bounded set that does not grow with study history the way the review log does. One
+fewer SQL function is also one fewer thing to remember to revoke from `anon`, which is
+the mistake `…_revoke_anon_rpc.sql` exists to remember. So the phase added exactly one
+function, `review_day_counts`, and the heatmap is the only thing aggregated in Postgres.
+
+**Heatmap intensity is a percentile of the user's own history.** Level 0 is a day with
+nothing on it. Levels 1–4 divide the range up to the 90th percentile of the user's active
+days into four bands, with the top band open-ended (`intensityThresholds`). Fixed counts
+were rejected: fifteen reviews a day and three hundred reviews a day are both normal, and
+a fixed scale gives one user a uniformly pale year and the other a uniformly dark one. The
+90th percentile rather than the maximum, so one 400-card cram session does not flatten the
+other 364 days. The legend states the four thresholds, so the scale is never a mystery.
+
+**What the DST tests caught.** Nothing in `day.ts` — P1 built that carefully and it held.
+What they did catch is the shape of the SQL. Bucketing as
+`(reviewed_at at time zone tz - interval '4 hours')::date` is correct because the
+subtraction happens on a `timestamp without time zone`, which has no DST of its own; the
+obvious-looking alternative of subtracting four hours from the `timestamptz` _before_
+converting is wrong by an hour on the two days a year the clocks move, and by nothing at
+all on the other 363, which is exactly how it would have shipped. `stats.test.ts` samples
+96 instants at 79-minute steps across four transitions in three zones and compares every
+bucket against `studyDayKey`.
+
+Two smaller things worth carrying forward:
+
+- **An unknown timezone falls back to UTC in SQL, not an error.** `resolveTimeZone` already
+  makes that choice in the client, and a profile can hold whatever a past version wrote. A
+  wrong-but-working heatmap beats a page that 500s.
+- **`useRetention` fetches one 90-day window, not three.** 7 / 30 / 90 are nested, so the
+  card slices the same rows rather than asking the server the same question three times.
+
+## Where P3 deviated from this plan
+
+- `heatmapGrid(counts, today, days)` takes a **day** count (365), not a week count. 365 days
+  is 52 weeks and one day, so the window starts mid-week whatever today is and the grid is
+  53 columns either way — which is what produces the leading padding this plan asked for. A
+  `weeks` parameter would have had to mean "53 weeks ending today", and that window always
+  starts on a week boundary, so there would be no leading cells to pad.
+- `useCardStates` is **not** gated on `useProfile`. Nothing it returns is bucketed by day,
+  so there is no timezone to get wrong, and waiting on a query it does not use would only
+  make the page slower. The three hooks that do bucket by day are all gated.
+- `useRetention` selects two columns beyond the three this plan listed —
+  `stability_after` and `difficulty_after` — because SPEC §4.4 also asks for mean stability
+  and difficulty _and their trend_, and the trend cannot come from the card table alone.

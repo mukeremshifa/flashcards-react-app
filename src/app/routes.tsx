@@ -1,6 +1,8 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './AppLayout';
 import { PagePlaceholder } from '@/components/PagePlaceholder';
+import { Skeleton } from '@/components/ui/skeleton';
 import { LoginPage, SignupPage } from '@/features/auth/AuthPages';
 import { ProtectedRoute, PublicOnlyRoute } from '@/features/auth/ProtectedRoute';
 import { DashboardPage } from '@/features/decks/DashboardPage';
@@ -18,9 +20,16 @@ import { SettingsPage } from '@/features/settings/SettingsPage';
  * route rather than each child — one place to get right, and no route can be
  * added later that quietly skips it.
  *
- * The routes still showing a placeholder belong to phases that have not run:
- * the progress dashboard is P3.
+ * `/progress` is loaded lazily: it is the only page that pulls in Recharts, and
+ * a charting library has no business in the bundle that renders the login form.
+ * That boundary is also where P4's code-splitting work starts.
  */
+const ProgressPage = lazy(() =>
+  import('@/features/progress/ProgressPage').then(module => ({
+    default: module.ProgressPage,
+  })),
+);
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -47,9 +56,17 @@ export function AppRoutes() {
         <Route
           path="progress"
           element={
-            <PagePlaceholder title="Progress" phase="P3">
-              <p>Review heatmap, streak, retention, due forecast, card-state mix.</p>
-            </PagePlaceholder>
+            <Suspense
+              fallback={
+                <div className="space-y-6">
+                  <Skeleton className="h-9 w-40" />
+                  <Skeleton className="h-28 w-full rounded-xl" />
+                  <Skeleton className="h-48 w-full rounded-xl" />
+                </div>
+              }
+            >
+              <ProgressPage />
+            </Suspense>
           }
         />
 
