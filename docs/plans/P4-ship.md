@@ -247,15 +247,161 @@ possible without a migration.
   split from a real seeded history.
 - `npm run db:pg-version` still agrees with `supabase/pg-version.json`.
 
-## Decisions to record
+## Decisions recorded at the close of P4 (2026-08-13)
 
-Write these back into this file as the phase closes:
+### The bundle: 781.31 kB raw / 230.94 kB gzip, and why not 400 kB
 
-- The eager bundle size actually reached, which routes were split, and whether `radix-ui`
-  needed to be imported per-package.
-- The measured §10 numbers, from the deployed app.
-- Whether the E2E test was written, and if not, why not.
-- What the demo account is, how it is reset, and where its credentials live.
-- Anything about the Vercel or Supabase configuration that a future session would have to
-  rediscover — the SPA rewrite rule especially, because it fails in a way that looks like
-  a routing bug in the app.
+Split behind `React.lazy`: `DeckDetailPage`, `CreateFromTextPage`, `ReviewGatePage`,
+`PracticePage`, `SettingsPage`, and `/progress` as before. Eager: the auth pages,
+`DashboardPage`, `DecksPage`, the 404 and `/auth/callback`.
+
+| Chunk                | Before (P3) | After (P4)         |
+| -------------------- | ----------- | ------------------ |
+| `index-*.js` (eager) | 827.88 kB   | 781.31 kB          |
+| gzip                 | 243.28 kB   | 230.94 kB          |
+| `ForecastChart-*.js` | 383.62 kB   | 383.63 kB          |
+| eight route chunks   | —           | 0.99–13.44 kB each |
+
+**The target was not reached, and it was not reachable.** Splitting every route moved
+46.6 kB, because the pages are small and the weight is vendor code the _eager_ pages need
+too. Measured by building with one chunk per npm package and reading what the entry
+preloads:
+
+| Package                                                                                                   | Raw      |
+| --------------------------------------------------------------------------------------------------------- | -------- |
+| `@supabase/*` (auth 102 + realtime 33 + phoenix 26 + storage 22 + postgrest 16 + client 11 + functions 3) | 213.8 kB |
+| `react-dom`                                                                                               | 172.5 kB |
+| `zod`                                                                                                     | 70.9 kB  |
+| application code                                                                                          | 62.0 kB  |
+| `@tanstack/query-core`                                                                                    | 38.7 kB  |
+| `react-router`                                                                                            | 37.9 kB  |
+| `sonner`                                                                                                  | 34.9 kB  |
+| `tailwind-merge`                                                                                          | 27.1 kB  |
+| `react-hook-form`                                                                                         | 26.5 kB  |
+| `ts-fsrs`                                                                                                 | 21.6 kB  |
+| `lucide-react`                                                                                            | 15.5 kB  |
+| `radix-ui` (10 primitives)                                                                                | ~30 kB   |
+
+The login screen needs `react-dom`, the Supabase client (to answer "is there a session?"
+before anything renders), `zod` + `react-hook-form` (the form), `react-router`, and
+`tailwind-merge`. That is a **~700 kB floor before a line of application code**, so 400 kB
+raw was never available; it was set without measuring the vendor floor. The honest number
+to watch is the gzip figure — 231 kB — and the honest lever is the dependency set, not the
+route table.
+
+Two specifics for whoever tries again:
+
+- **`radix-ui` tree-shakes.** The meta-package import (`import { AlertDialog } from
+'radix-ui'`) pulls only the ten primitives actually used; there are no chunks for
+  accordion, tooltip, popover and the rest. Importing `@radix-ui/react-*` per package
+  would change nothing. Do not do that refactor.
+- **`ts-fsrs` is eager and should not be**, but not because of the routes. `src/lib/queries.ts`
+  is one module imported by both eager and lazy pages, so everything it reaches — including
+  `fsrs.ts` — lands in the eager chunk. The fix is a `queries/` directory with a barrel;
+  it is worth ~22 kB of 781 kB, which is why it is in [POST-V1.md](POST-V1.md) (item 4)
+  rather than done here.
+
+### The E2E test was not written
+
+Playwright is not a dependency, and the happy path it would cover — signup → generation →
+review gate → practice — cannot currently run: generation is unconfigured on the project
+(task 6, below) and there is no deployed URL. Adding a browser runner now would produce a
+test that fails for reasons unrelated to the code, which is worse than not having it.
+§10 marks it optional; this is the "say so, and say why" it asks for.
+
+What replaced it, in the sense of catching the same class of failure: `routes.test.tsx`
+asserts that every lazily imported page still resolves and still exports the component the
+route names — reading the specifiers out of `routes.tsx` itself, so a rename cannot pass by
+happening in two places at once.
+
+### The demo account
+
+`scripts/seed-demo.mjs`, run as `npm run demo:seed` (add `-- --reset` to rebuild). Four
+decks — Photosynthesis, Postgres indexes, the Roman Republic, spaced repetition — generated
+through the real Edge Function, accepted at the gate, then ~60 days of review history
+replayed through `applyGrade`.
+
+- **It signs in as the demo user with the publishable key and stays inside RLS.** No secret
+  key, no `service_role`: every row it writes is a row the app could have written.
+- **Credentials live in the owner's password manager**, and in `DEMO_EMAIL` /
+  `DEMO_PASSWORD` in the shell when the script runs. Deliberately _not_ in `.env.example`,
+  which is the contract for what Vercel needs.
+- **Reset** is `npm run demo:seed -- --reset`, which deletes the account's decks (cascading
+  to cards and reviews) and rebuilds. Without the flag the script refuses to touch an
+  account that already has decks — a seeder that wipes whatever it is pointed at by default
+  is one mistyped `DEMO_EMAIL` away from being a bad afternoon.
+- The script is importable without running (`replayCard` is exported), and the replay was
+  verified offline against the schema's constraints: 43 cards, 252 reviews, every studied
+  day covered, a 21-day current streak, an 88.9% pass rate, and no violation of
+  `cards_state_consistency`, the `stability > 0` / `difficulty 1..10` checks, or the
+  `not null` columns on `reviews`.
+- Two bugs that check caught, both worth knowing about if this is ever rewritten: day
+  bucketing must be **calendar days**, not elapsed 24-hour periods (otherwise evening
+  reviews fall a bucket early and land on days the demo user is supposed to have skipped),
+  and session times drawn at random within an evening must be **clamped monotonic**, or a
+  card's log goes backwards.
+
+### Configuration a future session would otherwise rediscover
+
+- **The Vercel SPA rewrite is not optional and fails deceptively.** `vercel.json` rewrites
+  `/(.*)` to `/index.html`. Without it, `BrowserRouter` deep links 404 on hard refresh and
+  on pasted links but work perfectly while clicking around — which reads as a routing bug
+  in the app and is not one.
+- **Cache headers:** `assets/*` immutable for a year (content-hashed), `index.html`
+  `must-revalidate` (it names the current hashes). Getting that backwards pins visitors to
+  a stale build.
+- **Supabase Auth URL configuration is a third place to change on deploy.** Site URL and
+  Redirect URLs must include `https://<domain>/auth/callback`, or the callback route this
+  phase added never receives anything in production.
+- **`/auth/callback` handles both flows.** The client's `flowType` is unset, so it is
+  implicit: tokens arrive in the URL fragment and supabase-js has already consumed and
+  stripped them by the time React mounts, which is why the page asks `getSession()` rather
+  than parsing anything. The `?code=` (PKCE) branch is there so that turning PKCE on later
+  is a one-line client change rather than a silent breakage. Errors arrive as
+  `error` / `error_description` in either the query or the fragment, and are handed to
+  `/login` through router state.
+- **Only two variables reach Vercel.** `VITE_SUPABASE_URL` and
+  `VITE_SUPABASE_PUBLISHABLE_KEY`, matching `.env.example`. `GROQ_API_KEY` is a Supabase
+  function secret and belongs nowhere near the frontend project.
+
+---
+
+## What is done, and what is the owner's
+
+Done in this phase, on `dev`:
+
+- **1** `src/app/ErrorBoundary.tsx` — a class boundary with a `Try again` recovery card,
+  placed inside `AppLayout` around `<Outlet />` and again in `providers.tsx` around
+  everything. Resets on navigation.
+- **2** `src/app/NotFoundPage.tsx`, and `src/components/PagePlaceholder.tsx` deleted.
+- **3** `src/features/auth/AuthCallbackPage.tsx` and the `/auth/callback` route; failures
+  land on `/login` with the reason shown.
+- **4** Route code-splitting, measured above.
+- **5** `vercel.json` (the config half).
+- **7** `scripts/seed-demo.mjs` + `npm run demo:seed`, replay verified offline.
+- **8** The README, rewritten as the product and the deploy runbook.
+- **10** `ErrorBoundary.test.tsx` (4) and `routes.test.tsx` (2) — 305 tests, 21 files.
+- **11** `docs/plans/POST-V1.md`, and the board in `docs/plans/README.md`.
+
+**Owner-only, and still outstanding.** These are the ones that need credentials, and the
+phase is not shippable without them:
+
+- **Task 6 — configure and deploy the Edge Function.** `npx supabase secrets set
+GROQ_API_KEY=… GENERATION_MODEL=llama-3.3-70b-versatile`, then `npm run fn:deploy`. Until
+  this is done, generation answers "not configured on this project yet" and **task 7 cannot
+  be run** — the seeder will fail with that message rather than write hand-made cards.
+- **Task 5 (the account half) — connect the repository to Vercel** and set the two
+  environment variables. The config file is committed; the account is not something a
+  session can hold.
+- **Supabase Auth URL configuration** — Site URL and Redirect URLs, per the section above.
+- **Task 3's live verification.** `/auth/callback` is written and cannot be tested by the
+  PGlite harness, which stubs only `auth.users`. Confirm a real signup email lands signed
+  in.
+- **Task 7 — run `npm run demo:seed`** once the function is deployed, and put the
+  credentials in the README slot and the password manager.
+- **Task 9 — the §10 budget on the deployed app.** Nothing here was measurable without a
+  deployed URL and a seeded account: queue fetch p95, rating → next card, time to first
+  card, and `/progress` over a real history. The seeder prints time-to-first-card for each
+  deck as it runs, which is the §13 (1) number; the other three want the browser's
+  performance panel against the real project. Record them here.
+- **A screenshot for the README**, once there is a URL to take one from.

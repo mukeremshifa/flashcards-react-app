@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/features/auth/AuthProvider';
+import { RouteErrorBoundary } from './ErrorBoundary';
 import { ThemeProvider } from './theme';
 
 function makeQueryClient() {
@@ -30,12 +31,17 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <BrowserRouter>
-          {/* Inside the Query client: signing out clears the cache, so one
-              account's decks are never left on screen for the next. */}
-          <AuthProvider>
-            {children}
-            <Toaster position="top-center" richColors />
-          </AuthProvider>
+          {/* The outermost boundary, but still inside the router: its fallback
+              links to /dashboard and it resets on navigation, so it needs a
+              location. Everything a render can reach is below it. */}
+          <RouteErrorBoundary>
+            {/* Inside the Query client: signing out clears the cache, so one
+                account's decks are never left on screen for the next. */}
+            <AuthProvider>
+              {children}
+              <Toaster position="top-center" richColors />
+            </AuthProvider>
+          </RouteErrorBoundary>
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>

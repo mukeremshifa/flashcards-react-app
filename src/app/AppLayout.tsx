@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { RouteErrorBoundary } from './ErrorBoundary';
 import { useTheme } from './theme';
 
 const NAV = [
@@ -73,8 +74,13 @@ export function AppLayout() {
         </div>
       </header>
 
+      {/* Inside the layout, so a page that throws keeps the nav and the user
+          can walk out of it. The root boundary in providers.tsx catches the
+          case where the layout itself is what broke. */}
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        <Outlet />
+        <RouteErrorBoundary>
+          <Outlet />
+        </RouteErrorBoundary>
       </main>
 
       <footer className="text-muted-foreground border-t px-4 py-4 text-center text-xs">

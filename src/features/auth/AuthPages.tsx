@@ -63,7 +63,12 @@ function FormError({ message }: { message?: string }) {
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [serverError, setServerError] = useState<string | null>(null);
+  // /auth/callback redirects here with a reason when a confirmation or recovery
+  // link fails. Shown in the same place as a sign-in error, and cleared by the
+  // next attempt, so there is only ever one message to read.
+  const [serverError, setServerError] = useState<string | null>(
+    () => (location.state as { authMessage?: string } | null)?.authMessage ?? null,
+  );
 
   const form = useForm<Credentials>({
     resolver: zodResolver(Credentials),

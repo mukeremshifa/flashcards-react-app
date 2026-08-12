@@ -37,15 +37,15 @@ authored against the codebase it will actually run in.
 
 ## Board
 
-| Phase            | Plan                                   | Status                     |
-| ---------------- | -------------------------------------- | -------------------------- |
-| P0 — Reset       | _(executed inline, no plan file)_      | ✅ Complete — 2026-08-12   |
-| P0b — Cloud link | [P0b-cloud-link.md](P0b-cloud-link.md) | ✅ Complete — 2026-08-12   |
-| P1 — Core loop   | [P1-core-loop.md](P1-core-loop.md)     | ✅ Complete — 2026-08-12   |
-| P2 — Generation  | [P2-generation.md](P2-generation.md)   | ✅ Complete — 2026-08-12   |
-| P3 — Progress    | [P3-progress.md](P3-progress.md)       | ✅ Complete — 2026-08-12   |
-| P4 — Ship        | [P4-ship.md](P4-ship.md)               | 📋 Ready to execute        |
-| Post-v1          | _not yet written_                      | Written at the close of P4 |
+| Phase            | Plan                                   | Status                                                          |
+| ---------------- | -------------------------------------- | --------------------------------------------------------------- |
+| P0 — Reset       | _(executed inline, no plan file)_      | ✅ Complete — 2026-08-12                                        |
+| P0b — Cloud link | [P0b-cloud-link.md](P0b-cloud-link.md) | ✅ Complete — 2026-08-12                                        |
+| P1 — Core loop   | [P1-core-loop.md](P1-core-loop.md)     | ✅ Complete — 2026-08-12                                        |
+| P2 — Generation  | [P2-generation.md](P2-generation.md)   | ✅ Complete — 2026-08-12                                        |
+| P3 — Progress    | [P3-progress.md](P3-progress.md)       | ✅ Complete — 2026-08-12                                        |
+| P4 — Ship        | [P4-ship.md](P4-ship.md)               | 🟡 Code complete — 2026-08-13; the deploy itself is the owner's |
+| Post-v1          | [POST-V1.md](POST-V1.md)               | 📋 Backlog, not a phase                                         |
 
 The split that still matters day to day: schema and RLS changes are testable locally
 against PGlite (`npm test`), but anything touching Supabase Auth needs the real project,
@@ -62,12 +62,15 @@ Edge Function is typechecked only by `npm run fn:check` (Deno). Run it alongside
 four commands whenever anything under `src/lib` that the function imports changes — the
 bridge in `supabase/functions/_shared/` means those files are compiled by two compilers.
 
-Third, new since P3: the bundle is now split. `/progress` and Recharts load lazily, so
-`npm run build` prints several chunks and the number that matters is the eager one
-(`index-*.js`). P4 splits the rest; when reading its target, read the whole table rather
-than the total.
+Third, new since P3 and finished in P4: the bundle is split. Everything except the auth
+pages, the dashboard and the deck list loads lazily, so `npm run build` prints a dozen
+chunks and the number that matters is the eager one (`index-*.js`). It is **781 kB raw /
+231 kB gzip**, and P4 records why the 400 kB target it was given is unreachable with this
+dependency set — read that table before trying again.
 
-One P2 item is outstanding and belongs to the owner, not to a phase: setting `GROQ_API_KEY`
-and `GENERATION_MODEL` as function secrets and running `npm run fn:deploy`. Until then
-`/create/text` answers "not configured on this project yet". It did not block P3. **It does
-block P4**, whose demo seed account needs generated cards.
+The same P2 item is still outstanding and still belongs to the owner: setting
+`GROQ_API_KEY` and `GENERATION_MODEL` as function secrets and running `npm run fn:deploy`.
+Until then `/create/text` answers "not configured on this project yet". It did not block
+P3. **It blocked the end of P4**: `scripts/seed-demo.mjs` is written and its replay is
+verified offline, but it cannot be run, because the demo decks have to contain generated
+cards. The owner's remaining list is at the bottom of [P4-ship.md](P4-ship.md).
