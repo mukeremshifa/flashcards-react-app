@@ -37,15 +37,16 @@ authored against the codebase it will actually run in.
 
 ## Board
 
-| Phase            | Plan                                   | Status                                     |
-| ---------------- | -------------------------------------- | ------------------------------------------ |
-| P0 — Reset       | _(executed inline, no plan file)_      | ✅ Complete — 2026-08-12                   |
-| P0b — Cloud link | [P0b-cloud-link.md](P0b-cloud-link.md) | ⏳ Blocked on Supabase project credentials |
-| P1 — Core loop   | [P1-core-loop.md](P1-core-loop.md)     | 📋 Ready to execute                        |
-| P2 — Generation  | _not yet written_                      | Written at the close of P1                 |
-| P3 — Progress    | _not yet written_                      | Written at the close of P2                 |
-| P4 — Ship        | _not yet written_                      | Written at the close of P3                 |
+| Phase            | Plan                                   | Status                     |
+| ---------------- | -------------------------------------- | -------------------------- |
+| P0 — Reset       | _(executed inline, no plan file)_      | ✅ Complete — 2026-08-12   |
+| P0b — Cloud link | [P0b-cloud-link.md](P0b-cloud-link.md) | ✅ Complete — 2026-08-12   |
+| P1 — Core loop   | [P1-core-loop.md](P1-core-loop.md)     | 📋 Ready to execute        |
+| P2 — Generation  | _not yet written_                      | Written at the close of P1 |
+| P3 — Progress    | _not yet written_                      | Written at the close of P2 |
+| P4 — Ship        | _not yet written_                      | Written at the close of P3 |
 
-**P0b and P1 can proceed in parallel up to a point.** P1 tasks 1–3 (the FSRS wrapper, the
-`review_card` migration, query-layer scaffolding) need no live database because the PGlite
-harness runs migrations locally. Only auth and the real data path need P0b done.
+P0b is done, so **P1 has no external blockers** — the database is live, typed, and
+RLS-verified. Note the split that still matters day to day: schema and RLS changes are
+testable locally against PGlite (`npm test`), but anything touching Supabase Auth needs the
+real project, because the harness only stubs `auth.users`.

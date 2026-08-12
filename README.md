@@ -16,7 +16,7 @@ react-router 7 · Supabase (Postgres + Auth + RLS + Edge Functions) · ts-fsrs �
 
 ```bash
 npm install
-cp .env.example .env.local     # then fill in your Supabase URL + anon key
+cp .env.example .env.local     # then fill in your Supabase URL + publishable key
 npm run dev
 ```
 
@@ -65,8 +65,20 @@ Two structural decisions worth knowing before you change anything:
    policies and no others, so no update or delete is possible for anyone. It is the
    source of truth for scheduling, undo, and every progress metric.
 
-## Secrets
+## Keys and secrets
 
-Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are client-side. The anon key is
-not a secret — the RLS policies are the security boundary. The generation provider key
-is set as an Edge Function secret and never reaches the browser.
+This project uses Supabase's **modern key system** — `sb_publishable_…` and
+`sb_secret_…` — not the legacy `anon` / `service_role` JWTs, which Supabase deprecates at
+the end of 2026.
+
+Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are client-side. The
+publishable key is meant to be public: it grants nothing on its own, because requests run
+as the `anon` or `authenticated` Postgres role and RLS decides what they can see.
+
+The **secret key is never used anywhere in v1.** It maps to `service_role`, which holds
+`BYPASSRLS`, so a single copy of it in a client bundle would expose every user's data to
+anyone who reads the shipped JavaScript. `src/lib/env-schema.ts` refuses to start the app
+if it finds one, and that refusal is covered by tests.
+
+The generation provider key is likewise not a client value — it is set as an Edge Function
+secret (`supabase secrets set GROQ_API_KEY=…`) and never reaches the browser.

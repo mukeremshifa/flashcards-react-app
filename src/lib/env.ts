@@ -1,18 +1,8 @@
-import { z } from 'zod';
-
-/**
- * SPEC §10: only the Supabase URL and anon key may reach the browser. If you find
- * yourself adding a provider API key here, it belongs in an Edge Function secret
- * instead — anything imported by this module ships to every visitor.
- */
-const ClientEnv = z.object({
-  VITE_SUPABASE_URL: z.string().url('VITE_SUPABASE_URL must be a URL'),
-  VITE_SUPABASE_ANON_KEY: z.string().min(1, 'VITE_SUPABASE_ANON_KEY is required'),
-});
+import { ClientEnv } from './env-schema';
 
 const parsed = ClientEnv.safeParse({
   VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
-  VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
+  VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
 });
 
 if (!parsed.success) {

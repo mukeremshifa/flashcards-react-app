@@ -640,7 +640,12 @@ concrete payoff of the TypeScript decision.
 
 - `GROQ_API_KEY` lives only in Supabase function secrets: never in client env, never in
   the repo. `.env.local` gitignored; `.env.example` committed.
-- Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` reach the browser.
+- Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` reach the browser.
+  Supabase's modern key system (`sb_publishable_…` / `sb_secret_…`) is used rather than
+  the legacy `anon` / `service_role` JWTs, which are deprecated at the end of 2026.
+- **The secret key is never used.** It maps to `service_role` (`BYPASSRLS`), so it would
+  void every policy in §5.7. `src/lib/env-schema.ts` fails startup if a client env value
+  starts with `sb_secret_`, and a test asserts that.
 - RLS on every table, verified by a test that queries as user B for user A's rows.
 - Card content is rendered as **text, never via `dangerouslySetInnerHTML`** — generated
   content is untrusted input. Markdown support, if added later, needs sanitisation.
@@ -672,15 +677,15 @@ concrete payoff of the TypeScript decision.
 
 ## 11. Phasing
 
-| Phase                      | Deliverable                                                                                                                                            | Done when                                                        |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| **P0 — Reset** ✅ done     | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                         | ✅ build + typecheck + 38 tests green; RLS isolation test passes |
-| **P0b — Cloud link** ⏳    | Create Supabase project, `db push`, `db:types`, fill `.env.local`                                                                                      | Blocked on project credentials — see plans/P0b-cloud-link.md     |
-| **P1 — Core loop, no LLM** | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls                                             | A hand-built deck schedules correctly across a week              |
-| **P2 — Generation**        | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                    | Paste text → 20 cards streamed → accept → practice               |
-| **P3 — Progress**          | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                         | Dashboard reflects real review history                           |
-| **P4 — Ship**              | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | A stranger can sign up and get value                             |
-| **Post-v1**                | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes | —                                                                |
+| Phase                        | Deliverable                                                                                                                                            | Done when                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                         | ✅ build + typecheck + 38 tests green; RLS isolation test passes                     |
+| **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                    | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501` |
+| **P1 — Core loop, no LLM**   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls                                             | A hand-built deck schedules correctly across a week                                  |
+| **P2 — Generation**          | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                    | Paste text → 20 cards streamed → accept → practice                                   |
+| **P3 — Progress**            | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                         | Dashboard reflects real review history                                               |
+| **P4 — Ship**                | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | A stranger can sign up and get value                                                 |
+| **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes | —                                                                                    |
 
 **P1 before P2 is deliberate.** The LLM is the exciting part; the scheduler is the part that
 must be right. Building generation on top of an unproven scheduler means debugging both at
