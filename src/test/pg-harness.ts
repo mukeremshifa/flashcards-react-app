@@ -49,8 +49,16 @@ const AUTH_STUB = `
     )::uuid
   $fn$;
 
+  -- Supabase's two request roles. anon exists here so that migrations adjusting
+  -- its privileges are actually exercised rather than silently skipped.
+  create role anon;
   create role authenticated;
-  grant usage on schema public, auth to authenticated;
+  grant usage on schema public, auth to anon, authenticated;
+
+  -- Supabase applies this to every project, and it is the reason a migration has
+  -- to revoke from anon explicitly: without it here, such a revoke would be a
+  -- no-op locally and the test asserting it would pass no matter what.
+  alter default privileges in schema public grant all on functions to anon, authenticated;
 `;
 
 export type TestDb = Awaited<ReturnType<typeof createTestDb>>;
@@ -104,6 +112,13 @@ export async function createTestDb() {
         userId,
       ]);
       await db.exec('set role authenticated');
+    },
+
+    /** Become a signed-out visitor: the `anon` role, with no JWT subject. */
+    async actAsAnon(): Promise<void> {
+      await db.exec('reset role');
+      await db.query('select set_config($1, $2, false)', ['request.jwt.claim.sub', '']);
+      await db.exec('set role anon');
     },
 
     /** Drop back to superuser for fixture setup. */

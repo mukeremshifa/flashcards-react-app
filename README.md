@@ -72,6 +72,8 @@ Migrations are plain SQL in `supabase/migrations`, applied in filename order:
 - `…_rls.sql` — row level security; one owner-only policy set per table
 - `…_review_card.sql` — the `review_card` and `undo_last_review` functions,
   `cards.learning_steps`, and the pre-review snapshot columns on `reviews`
+- `…_revoke_anon_rpc.sql` — takes EXECUTE on those two functions away from `anon`,
+  which Supabase's default privileges grant automatically to every new function
 
 Two structural decisions worth knowing before you change anything:
 

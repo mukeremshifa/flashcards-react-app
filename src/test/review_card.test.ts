@@ -238,6 +238,28 @@ describe('RLS still applies inside the function', () => {
   });
 });
 
+describe('signed-out callers', () => {
+  it('cannot execute either RPC at all', async () => {
+    // Not merely "sees no rows": `anon` has no EXECUTE grant, so the request is
+    // refused before the function body runs. Supabase grants EXECUTE on new
+    // public functions to anon by default privileges, so this has to be revoked
+    // explicitly — and stay revoked.
+    const cardId = await seedCard(db, alice, aliceDeck);
+    await db.actAsAnon();
+
+    await expect(
+      db.raw.query(
+        'select * from review_card($1::uuid, 3::smallint, null, now(), $2::jsonb)',
+        [cardId, JSON.stringify({})],
+      ),
+    ).rejects.toThrow(/permission denied/i);
+
+    await expect(
+      db.raw.query('select * from undo_last_review($1::uuid)', [cardId]),
+    ).rejects.toThrow(/permission denied/i);
+  });
+});
+
 describe('lapses', () => {
   it('counts one only on Again', async () => {
     for (const grade of [Grade.Again, Grade.Hard, Grade.Good, Grade.Easy]) {

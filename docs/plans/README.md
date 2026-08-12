@@ -50,8 +50,7 @@ The split that still matters day to day: schema and RLS changes are testable loc
 against PGlite (`npm test`), but anything touching Supabase Auth needs the real project,
 because the harness only stubs `auth.users`.
 
-**One thing carries from P1 into P2:** its migration
-(`supabase/migrations/20260812093000_review_card.sql`) is written and tested but **not
-pushed** — that is the owner's call, and `src/types/database.ts` carries its columns by hand
-until it happens. P2 tasks 1–3 do not care; task 4 onwards does. Run `supabase db push`
-then `npm run db:types` and delete the note at the top of that file.
+P1's migrations are applied: `20260812093000_review_card.sql` and
+`20260812150000_revoke_anon_rpc.sql` were pushed on 2026-08-12 and
+`src/types/database.ts` regenerated from the live schema. P2 starts against a database that
+matches the repository.

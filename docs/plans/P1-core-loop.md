@@ -287,15 +287,43 @@ tell a two-tab conflict from a real failure and say so instead of showing a stac
 ### Migration
 
 `supabase/migrations/20260812093000_review_card.sql`, appended to the list in the root
-`README.md`. **It has not been pushed** — pushing is the owner's call. Until it is:
+`README.md`. Pushed to the linked project on 2026-08-12 (`npm run db:push`), and
+`src/types/database.ts` regenerated from the live schema — so the types are generated
+output again, not hand-maintained.
 
-- `src/types/database.ts` carries the new columns and functions **by hand**, with a note at
-  the top saying so. Re-run `npm run db:types` after `npm run db:push` and the note goes.
-- `npm test` already runs this migration against PGlite, so it is verified, just not live.
+Two things surfaced in the process, both fixed here:
+
+- The `db:*` npm scripts called `supabase` directly, which is not on `PATH`; combined with
+  the `>` redirect in `db:types`, the failure **emptied `src/types/database.ts`** before
+  reporting itself. They now go through `npx supabase`.
+- Postgres cannot express argument nullability, so `review_card`'s `p_duration_ms int`
+  generates as `number` even though null is a real value (no timer started — and
+  `review_card.test.ts` covers it). Cast at the call site in `src/lib/queries.ts`, with the
+  reason written next to it. Do not "fix" this by sending 0; that reads as answered
+  instantly and would pollute the timing data.
+
+A third thing was found by testing the deployment rather than trusting it. Calling
+`review_card` anonymously against the live project reached the function body, despite the
+`revoke all … from public` at the end of that migration: Supabase runs
+`alter default privileges in schema public grant all on functions to anon, …`, so every new
+function picks up an explicit `anon` grant that a PUBLIC revoke does not touch. Nothing
+leaked — `security invoker` plus RLS meant anon saw no card, which is why the anonymous
+`undo_last_review` answered PT404 — but an unauthenticated request should not enter a
+mutation function at all.
+
+Fixed in `supabase/migrations/20260812150000_revoke_anon_rpc.sql` (the earlier migration was
+already pushed, so it was not edited). The test harness now creates the `anon` role _and_
+applies Supabase's default-privileges grant, so the revoke is genuinely exercised: with the
+migration removed, `review_card.test.ts` fails. Live re-check after pushing: both RPCs
+answer `42501 permission denied` to an anonymous caller, and P0b's anonymous read of
+`cards` still returns `[]`.
+
+Worth keeping in mind for P2: the same default grant will apply to anything the Edge
+Function phase adds.
 
 ### Measurements
 
-- 156 tests green across 11 files (`npm test`), plus `typecheck`, `lint` (0 errors, 4
+- 157 tests green across 11 files (`npm test`), plus `typecheck`, `lint` (0 errors, 4
   fast-refresh warnings), and `build`.
 - The queue fetch over a seeded 2,000-card deck stays under the SPEC §10 300ms budget in
   PGlite — Postgres in WebAssembly, so the pessimistic case — and `explain` confirms it uses

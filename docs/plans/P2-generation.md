@@ -16,11 +16,11 @@ them up unchanged.
 npm test && npm run typecheck && npm run lint && npm run build   # all green before starting
 ```
 
-- P1 complete (it is). 156 tests, 11 files.
-- **The P1 migration must be pushed before task 4.** `supabase db push` applies
-  `20260812093000_review_card.sql`, then `npm run db:types` replaces the hand-written
-  additions in `src/types/database.ts` and the note at the top of that file can go. Tasks
-  1–3 do not need it.
+- P1 complete (it is). 157 tests, 11 files.
+- The database matches the repository: P1's migration is pushed and
+  `src/types/database.ts` is generated from it. If P2 adds a migration, apply it the same
+  way — `npm run db:push` then `npm run db:types`, per CLAUDE.md — rather than leaving the
+  types to be written by hand.
 - Supabase CLI linked (P0b did this: project `cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6).
 - A Groq account on the free tier. The key is set with
   `supabase secrets set GROQ_API_KEY=…` and must never appear in `.env.local`,

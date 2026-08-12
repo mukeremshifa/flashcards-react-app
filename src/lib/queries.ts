@@ -599,7 +599,12 @@ export function useReviewCard() {
       const result = await supabase.rpc('review_card', {
         p_card_id: card.id,
         p_rating: grade,
-        p_duration_ms: durationMs ?? null,
+        // Null is a real value here — the card may have been rated before any
+        // timer started, and `reviews.duration_ms` is nullable for exactly that.
+        // Postgres cannot express argument nullability, so the generated types
+        // say `number`; the cast says what the function actually accepts rather
+        // than inventing a zero that would read as "answered instantly".
+        p_duration_ms: (durationMs ?? null) as number,
         // Sent back exactly as PostgREST rendered it; this is the optimistic
         // concurrency token, and a re-formatted timestamp would never match.
         p_expected_updated_at: card.updated_at,

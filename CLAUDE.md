@@ -22,6 +22,8 @@ so** rather than doing it. Commit the work to `dev` and describe what remains.
 
 Do not offer to merge or push. Do not ask "shall I merge this?". The owner does that.
 
+**`supabase db push` is not a git push and is not covered by any of the above.** See below.
+
 ## Documentation
 
 - `docs/SPEC.md` — what the product is, and why each decision was made. The source of
@@ -37,6 +39,25 @@ phase's plan, not into the current commit — even when it would take five minut
 
 - Migrations are plain SQL in `supabase/migrations`, applied in filename order. Never edit
   a migration that has been pushed; add a new one.
+- **`npm run db:push` is allowed, and expected, when a plan's work needs it.** A phase that
+  writes a migration is not finished while the schema only exists on disk: the types cannot
+  be regenerated, so `src/types/database.ts` has to be hand-written, and every later session
+  inherits that drift. Applying it is part of the work, not a deployment.
+
+  Push it, then immediately `npm run db:types` and commit the regenerated file. Check the
+  result: Postgres cannot express argument nullability, so a function parameter that accepts
+  null is generated as non-null — cast at the call site and say why, rather than inventing a
+  value. Run `npm run db:pg-version` afterwards if anything about the environment changed.
+
+  What is still the owner's alone: `git push`, `git merge`, PRs, anything touching `main` or
+  a remote. Those are about the shared repository. The database is this project's own
+  schema, and `npm test` has already verified the migration against PGlite before it goes.
+
+  Two things to do first, every time: `npx supabase db push --linked --dry-run` and read
+  what it lists — if it names a migration you did not write, stop and ask. And never push a
+  migration whose tests have not run.
+- Destructive database operations are **not** covered by that. `supabase db reset`, dropping
+  a table, deleting rows in the live project: ask first, every time.
 - `npm test` runs those migrations against PGlite (Postgres in WASM), so schema and RLS
   changes are verifiable with no Docker and no cloud round-trip.
 - **Postgres majors must match between tests and production.** `supabase/pg-version.json`
