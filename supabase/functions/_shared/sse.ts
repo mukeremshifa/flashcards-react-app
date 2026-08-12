@@ -45,8 +45,10 @@ export function createEventStream(): EventStream {
     } catch {
       // The client went away between the check and the enqueue. The generation
       // itself is unaffected — the drafts are already rows (SPEC §4.1) — so this
-      // is not worth failing over.
+      // is not worth failing over. Stop the heartbeat with it, or the timer
+      // keeps firing at a stream nobody is reading until the worker is recycled.
       closed = true;
+      stop();
     }
   }
 
