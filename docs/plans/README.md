@@ -66,13 +66,20 @@ four commands whenever anything under `src/lib` that the function imports change
 bridge in `supabase/functions/_shared/` means those files are compiled by two compilers.
 
 Third, new since P3 and finished in P4: the bundle is split. Everything except the auth
-pages, the dashboard and the deck list loads lazily, so `npm run build` prints a dozen
-chunks and the number that matters is the eager one (`index-*.js`). It is **788 kB raw /
-233 kB gzip** after P6, and P4 records why the 400 kB target it was given is unreachable with
-this dependency set — read that table before trying again. P6 added ~6 kB raw to it, all of
-it accounted for: the account menu, the three-state theme control and the `Kbd` primitive
-are new components inside the eager `AppLayout`, plus two lucide icons that were not
-previously imported anywhere. No new dependency entered the first chunk.
+pages, the dashboard and the deck list loads lazily, so `npm run build` prints a dozen chunks
+and the eager one is `index-*.js`.
+
+**There is no size target, and there has not been one since P6.** P4 was handed 400 kB and
+spent a page of the plan explaining why it is unreachable with this dependency set; P5 and P6
+then each justified a handful of kB against a number that was never real. The build takes the
+size it needs. Sizes in the P4–P6 plans are records of what was measured at the time, not bars
+anything has to clear, and `chunkSizeWarningLimit` in `vite.config.ts` is raised so the build
+stops reporting a threshold nobody is enforcing.
+
+What replaced it is a boundary rather than a budget: a module should not import what it does
+not use, and a public page must not reach the authenticated data layer at all. That is a
+correctness rule — it is about what requests fire and when — and it is testable, which a kB
+count never usefully was.
 
 The same P2 item is still outstanding and still belongs to the owner: setting
 `GROQ_API_KEY` and `GENERATION_MODEL` as function secrets and running `npm run fn:deploy`.

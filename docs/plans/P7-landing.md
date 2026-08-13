@@ -5,13 +5,13 @@ but there is still no way to find out what SynapseDeck is without creating an ac
 redirects to `/dashboard`, `/dashboard` bounces a signed-out visitor to `/login`, and the
 login card is the entire pitch. P7 gives the product a front door.
 
-This is the phase with the risk in it. It is the only one left that changes the route table,
-what an anonymous request can reach, and the shape of the bundle a first-time visitor
-downloads — three things that are easy to get subtly wrong and hard to notice afterwards.
+This is the phase with the risk in it. It is the only one left that changes the route table
+and what an anonymous request can reach — two things that are easy to get subtly wrong and
+hard to notice afterwards.
 
 **Reference:** SPEC.md §1, §8.2, §10 (Security, Performance), §11, §12 _Closed at P6_.
 **Done when:** a stranger who has never heard of it understands the product before signing
-up, and the page they land on is smaller than the app behind it.
+up, and the page they land on makes no authenticated request to do it.
 
 ## Preconditions
 
@@ -23,10 +23,11 @@ npm run typecheck && npm run lint && npm test && npm run build
 - P6 is committed. In particular: the typographic rules in SPEC §12 _Closed at P6_ are what
   the landing page has to be built out of — the serif is for the wordmark, the page headline,
   and card questions; numbers are mono; the accent marks one thing per screen.
-- Baseline: eager bundle **788.13 kB raw / 232.59 kB gzip**, `ForecastChart` split at
-  369.25 kB, ten other lazy chunks. `docs/plans/P4-ship.md` records why the original 400 kB
-  target is unreachable with this dependency set — read that table before trying to beat it.
 - `npm run brand:assets` leaves `public/` unchanged.
+- **There is no bundle-size target, here or anywhere after this.** P4 was given 400 kB and
+  recorded why it is unreachable with this dependency set; P5 and P6 then spent paragraphs
+  justifying single-digit kB. The build takes the size it needs. What survives from all that
+  is not a number but a boundary, and it is trap 3 below.
 
 ## The three traps, up front
 
@@ -44,11 +45,38 @@ Everything below assumes these are understood, because each one fails quietly.
    `PublicOnlyRoute` has to be considered: a signed-in user who opens `/` should land on the
    app, not on a marketing page for a product they already use.
 
-3. **Anything the landing page imports lands in the eager chunk.** That is the whole point of
-   the phase and also its main way of failing: one `import { useDecks } from '@/lib/queries'`
-   on the landing page drags Supabase, TanStack Query and the schemas into the first
-   download. The landing route must import from `@/components/ui/*`, `@/components/Logo`,
-   `lucide-react` and nothing else. Check the build table, not your intuition.
+3. **The landing page must not reach the data layer at all.** Not for size — for behaviour.
+   One `import { useDecks } from '@/lib/queries'` pulls in Supabase and TanStack Query, and
+   the moment a query hook is rendered the page starts making requests on behalf of a visitor
+   who has no session and has not asked for anything. A marketing page that opens a websocket
+   and 401s in the console is a bad first impression and a slow one. Import from
+   `@/components/ui/*`, `@/components/Logo`, `@/app/ThemeChoice`, `react-router-dom` and
+   `lucide-react`. Nothing from `@/lib/queries`, `@/lib/supabase`, or `@/features/*`.
+
+## The identity, on a page that is mostly headline
+
+P6 closed the visual system for screens with chrome around them. A landing page has none, so
+three of its rules bite harder here than anywhere in the app.
+
+- **The accent is a field, never a foreground.** `--primary` is `oklch(0.922 0.181 122.5)` —
+  lightness 0.92, roughly 1.2:1 against paper. A chartreuse headline is invisible in the light
+  theme and, in the dark one, spends the page's entire accent budget on decoration. Headlines
+  are ink on paper or paper on ink; the accent goes on the primary call to action and stops.
+  `src/test/palette.test.ts` will **not** catch a violation — it checks that no literal colours
+  are used, not that a token is used correctly. This one is on the reviewer.
+
+- **The headline is already written, and already shipped.** `public/og-image.png` — the image
+  every shared link renders — reads _"Forgetting is the schedule."_ set in the serif over the
+  grade ramp. If the page's `h1` says something different, the preview and the page disagree,
+  and nobody finds out until the link is posted somewhere. Use it, or change both: the card's
+  copy is a string in `scripts/build-brand-assets.mjs`, and `npm run brand:assets` regenerates
+  it. Do not let them drift.
+
+- **The grade ramp is the one signature graphic this brand has.** Red → `#D0F861` across the
+  four FSRS grades, already on the social card, already on the rating buttons. It is the
+  honest illustration of what the product does, it costs four `<div>`s, and it is exempt from
+  the once-per-screen accent rule because it is a scale rather than an emphasis (SPEC §12
+  _Closed at P6_). Reach for it before inventing a graphic.
 
 ## Out of scope — do not build these here
 
@@ -57,10 +85,10 @@ Everything below assumes these are understood, because each one fails quietly.
 - **Analytics of any kind.** P4 settled this for error reporting and the reasoning is
   identical: a third-party script on a page that also serves untrusted model output is a
   security decision v1 does not need to make (SPEC §10).
-- **Screenshots of the app.** A 1200×630 PNG of a dashboard is 300 kB, goes stale the first
-  time a screen changes, and would have to be regenerated by hand. The mark, the type and the
-  ramp are the identity; use them. If a visual is unavoidable, draw it in SVG from the
-  existing tokens the way `Logo.tsx` does.
+- **Screenshots of the app.** A PNG of a dashboard goes stale the first time a screen
+  changes, cannot follow the theme, and has to be regenerated by hand every time. The product
+  still has to be _shown_ — see task 2 — but it is shown with markup, not with pictures of
+  markup.
 - **Server-side rendering, prerendering, or a static export.** The app is a Vite SPA on
   Vercel with a catch-all rewrite. Changing that is a deployment-shaped decision, not a
   landing-page one, and every social scraper that matters reads the `<head>` in `index.html`,
@@ -77,8 +105,10 @@ Everything below assumes these are understood, because each one fails quietly.
 - `ThemeChoice` (`src/app/ThemeChoice.tsx`) — the landing page is the first screen a stranger
   sees, and it is the only screen with no account menu to hide the control in. Reuse it;
   do not build a second toggle.
-- The tagline in `AuthPages.tsx` is currently the app's only marketing sentence. It should
-  move to a shared constant rather than being written a second time, and the two must agree.
+- The product's one marketing sentence lives in `index.html`'s `<meta name="description">`
+  and, in longer form, at the top of `README.md`. `AuthPages.tsx`'s two `description` strings
+  are panel copy for people who have already decided, not a pitch — do not mistake them for
+  the tagline. Whatever the page ends up saying, the meta description has to agree with it.
 - `index.html` already carries a full `<head>`: description, Open Graph, Twitter card,
   `theme-color` per scheme, and the pre-paint theme script. It has one recorded gap — the
   comment above the social tags says `og:image` and `og:url` must become **absolute** once a
@@ -118,6 +148,15 @@ footer, carrying the same review-log sentence the app's footer does.
 Keyboard and focus rules are the same as everywhere else: real `<a>`/`<button>` elements,
 visible focus rings, one accent for the primary call to action and nothing else.
 
+**How the product gets shown.** Not screenshots, and not hand-drawn SVG either: build the
+visuals as ordinary presentational components with hardcoded props, in
+`src/features/marketing/showcase/`. A card front mid-review, a few staged rows arriving from
+the generator, the grade ramp. They are built from the same tokens and the same type rules as
+the real screens, so they follow the theme, stay sharp at any zoom, cost no image bytes, and
+cannot go stale in the way a picture does — but they are inert, and they import nothing from
+`@/features/*`. Copy the markup; do not import the live components, or trap 3 comes back in
+through the side door.
+
 ### 3. The route table — `src/app/routes.tsx`
 
 The change itself is small and the consequences are not:
@@ -137,19 +176,23 @@ them. This needs the deployed domain, which is the owner's to supply — if it i
 when P7 runs, leave the tags relative, and say so explicitly in the acceptance notes rather
 than inventing a URL.
 
-Add `public/robots.txt` and, if it is one file and not a build step, a `sitemap.xml`. The
-app's authenticated routes are behind a client-side guard, so they are not secret but they
-are also not worth crawling.
+`public/robots.txt` already exists — P5 wrote it, and it already says the sitemap arrives
+with this phase. Add `sitemap.xml` (one file; not a build step for a single route) and check
+that the `Allow` rule still matches the route table. The app's authenticated routes are behind
+a client-side guard, so they are not secret, but they are not worth crawling either.
 
-### 5. Bundle discipline
+### 5. What loads when
 
-Measure, then decide. Record the eager chunk before and after in the plan's acceptance
-notes. If adding the landing page moved the first-load cost by more than a couple of kB,
-find out which import did it — the answer is almost always a module that reaches
-`@/lib/queries` or `@/lib/supabase` transitively.
+Not a size exercise — a correctness one. Two questions worth answering deliberately:
 
-Consider whether the auth pages should stay eager now that `/` exists: P4 kept them eager
-because they were the first screen a signed-out visitor saw, and after P7 they are not.
+- **Is the landing page lazy?** It should be, so a signed-in user's first load does not
+  fetch marketing they will never see.
+- **Do the auth pages stay eager?** P4 made them eager because they were the first screen a
+  signed-out visitor saw. After P7 they are not; `/` is. Whichever way it goes, say why in
+  SPEC §12 — it is a one-line change that will look arbitrary in six months.
+
+Record the build output in the acceptance notes as an observation. It is a fact about the
+app, not a bar it has to clear.
 
 ### 6. Tests
 
@@ -164,25 +207,23 @@ ends with an unexplained blank row is worse than one that says "done".
 ## Acceptance criteria
 
 - `npm run typecheck && npm run lint && npm test && npm run build` green.
-- `/` renders for a visitor with no session, makes **zero** network requests, and links to
-  both sign-in and sign-up.
+- `/` renders for a visitor with no session, makes **zero** network requests (check the
+  network panel, not just the test), and links to both sign-in and sign-up.
 - A signed-in visitor to `/` ends up wherever §3 decided, and that decision is in SPEC §12.
 - `src/test/palette.test.ts` still passes — no new colours, no literal hex.
-- The eager bundle is within a couple of kB of 788.13 kB raw, or the increase is explained by
-  name in the plan.
 - `npm run brand:assets` still leaves `public/` unchanged.
 - Every screen still passes the P6 rules: one accent per screen, serif only where SPEC §12
   allows, numbers in mono.
 
 ## Tests to write
 
-| Test                                                                            | Failure it catches                                                                                            |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `/` renders the landing page with no session and no redirect                    | The index route being left inside `ProtectedRoute`, so the front door bounces every stranger to `/login`      |
-| `/` sends a visitor **with** a session to the app                               | A returning user landing on marketing copy for a product they already pay attention to                        |
-| The landing module imports nothing from `@/lib/queries` or `@/lib/supabase`     | The eager bundle quietly absorbing Supabase and TanStack Query on behalf of a page that needs neither         |
-| `routes.test.tsx` still resolves every lazy import, with the count updated to 7 | The `toHaveLength` guard being deleted rather than updated — after which a renamed page fails only at runtime |
-| The landing page's sign-in and sign-up links point at `/login` and `/signup`    | The one job of the page, broken by a typo that no other test would ever exercise                              |
+| Test                                                                                                      | Failure it catches                                                                                            |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `/` renders the landing page with no session and no redirect                                              | The index route being left inside `ProtectedRoute`, so the front door bounces every stranger to `/login`      |
+| `/` sends a visitor **with** a session to the app                                                         | A returning user landing on marketing copy for a product they already pay attention to                        |
+| The landing module imports nothing from `@/lib/queries`, `@/lib/supabase` or `@/features/*` (bar its own) | A marketing page firing authenticated requests, and 401s in the console, for a visitor who has no session     |
+| `routes.test.tsx` still resolves every lazy import, with the count updated to 7                           | The `toHaveLength` guard being deleted rather than updated — after which a renamed page fails only at runtime |
+| The landing page's sign-in and sign-up links point at `/login` and `/signup`                              | The one job of the page, broken by a typo that no other test would ever exercise                              |
 
 ## Decisions to record
 
