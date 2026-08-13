@@ -11,6 +11,15 @@ import { McqOptions } from './McqOptions';
  * anywhere in this directory. Card text is untrusted (§10): today it is typed by
  * the user, from P2 it is written by a language model, and the ESLint rule that
  * blocks raw HTML is what keeps that decision from eroding.
+ *
+ * **The front is the one place the display face earns its keep (P6).** A question
+ * set in DM Serif Display reads as something to think about; the same question in
+ * the interface face reads as a form label, which is what it looked like through
+ * P1–P5. The back does not follow it: answers, hints and explanations are read
+ * rather than weighed, and a display face at body size is worse at being read.
+ * `text-xl` is the base because this component also renders twenty rows deep in
+ * the review gate — practice passes a larger size for the single card in front of
+ * someone.
  */
 
 export function CardFront({
@@ -29,7 +38,9 @@ export function CardFront({
   switch (payload.kind) {
     case 'basic':
       return (
-        <p className={cn('text-lg leading-relaxed whitespace-pre-wrap', className)}>
+        <p
+          className={cn('font-serif text-xl leading-snug whitespace-pre-wrap', className)}
+        >
           {payload.front}
         </p>
       );
@@ -46,8 +57,10 @@ export function CardFront({
 
     case 'mcq':
       return (
-        <div className={cn('space-y-4', className)}>
-          <p className="text-lg leading-relaxed whitespace-pre-wrap">{payload.stem}</p>
+        <div className={cn('space-y-5', className)}>
+          <p className="font-serif text-xl leading-snug whitespace-pre-wrap">
+            {payload.stem}
+          </p>
           <McqOptions
             payload={payload}
             selected={selectedOption ?? null}

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { AlertTriangleIcon, CheckIcon, PencilIcon, XIcon } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Kbd } from '@/components/ui/kbd';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CardBack, CardFront } from '@/features/cards/CardFace';
 import { CardEditor } from '@/features/cards/CardEditor';
@@ -24,6 +24,11 @@ import type { SkippedCard, StagedCard } from './useGenerateCards';
  * Content is rendered by `CardFront` / `CardBack` — the components practice
  * uses — so what the gate approves is exactly what practice will show. Nothing
  * here interprets a payload itself, and nothing here renders HTML (SPEC §10).
+ *
+ * P6 kept that arrangement and gave the two states different *weight* rather
+ * than different layouts: only the row the keyboard is on carries the accent and
+ * shows its shortcuts. Twenty accent-filled Accept buttons is twenty things
+ * shouting at once, and none of them tells you where you are.
  */
 
 const KIND_LABELS: Record<CardKind, string> = {
@@ -170,8 +175,8 @@ function StagedCardRow({
       ref={rowRef}
       onMouseDown={onFocus}
       className={cn(
-        'py-4 transition-colors',
-        current && 'ring-ring ring-2',
+        'gap-4 py-5 transition-colors',
+        current ? 'ring-ring ring-2' : 'border-border/70 shadow-none',
         busy && 'opacity-60',
       )}
       aria-current={current ? 'true' : undefined}
@@ -190,8 +195,10 @@ function StagedCardRow({
           />
         ) : (
           <>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">{KIND_LABELS[card.payload.kind]}</Badge>
+            <div className="text-muted-foreground flex items-center gap-2 text-xs tracking-wide uppercase">
+              <span className="font-mono normal-case tabular-nums">{card.index + 1}</span>
+              <span aria-hidden>·</span>
+              <span>{KIND_LABELS[card.payload.kind]}</span>
             </div>
 
             {/*
@@ -211,23 +218,23 @@ function StagedCardRow({
             {interactive && (
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 {onAccept && (
-                  <Button size="sm" onClick={onAccept} disabled={busy}>
-                    <CheckIcon /> Accept <kbd className="ml-1 opacity-60">A</kbd>
+                  <Button
+                    size="sm"
+                    variant={current ? 'default' : 'outline'}
+                    onClick={onAccept}
+                    disabled={busy}
+                  >
+                    <CheckIcon /> Accept {current && <Kbd className="ml-1">A</Kbd>}
                   </Button>
                 )}
                 {onStartEdit && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={onStartEdit}
-                    disabled={busy}
-                  >
-                    <PencilIcon /> Edit <kbd className="ml-1 opacity-60">E</kbd>
+                  <Button size="sm" variant="ghost" onClick={onStartEdit} disabled={busy}>
+                    <PencilIcon /> Edit {current && <Kbd className="ml-1">E</Kbd>}
                   </Button>
                 )}
                 {onReject && (
                   <Button size="sm" variant="ghost" onClick={onReject} disabled={busy}>
-                    <XIcon /> Reject <kbd className="ml-1 opacity-60">R</kbd>
+                    <XIcon /> Reject {current && <Kbd className="ml-1">R</Kbd>}
                   </Button>
                 )}
               </div>

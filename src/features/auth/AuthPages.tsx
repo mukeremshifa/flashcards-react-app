@@ -25,7 +25,16 @@ import { detectTimeZone } from '@/lib/day';
  * "Invalid login credentials" mean genuinely different things, and replacing
  * them with one friendly sentence leaves a user with an unconfirmed address
  * retyping a password that was right all along.
+ *
+ * Until P7 builds a landing page, these two screens and the 404 are the entire
+ * first impression: a stranger who follows a link here has been told the product
+ * name and nothing else. Hence the line under the lockup — it is the only place
+ * in the app today that says what SynapseDeck is for.
  */
+
+/** One sentence, and the only marketing claim in the build. It has to be true. */
+const TAGLINE =
+  'Cards written from your own notes, scheduled by how well you remember them.';
 
 function AuthShell({
   title,
@@ -40,10 +49,15 @@ function AuthShell({
 }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-12">
-      <LogoLockup className="mb-8 self-center" />
-      <Card>
+      <div className="mb-8 flex flex-col items-center gap-3 text-center">
+        <LogoLockup />
+        <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
+          {TAGLINE}
+        </p>
+      </div>
+      <Card className="py-7">
         <CardHeader>
-          <CardTitle className="text-xl">{title}</CardTitle>
+          <CardTitle className="font-serif text-2xl font-normal">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">{children}</CardContent>

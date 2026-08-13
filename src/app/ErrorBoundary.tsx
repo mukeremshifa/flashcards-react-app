@@ -2,8 +2,8 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { TriangleAlert } from 'lucide-react';
 
-import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 /**
  * The one failure mode a deployed SPA must not have.
@@ -67,32 +67,46 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-/** The recovery card: what happened, a way to retry, and a way out. */
+/**
+ * The recovery card: what happened, a way to retry, and a way out.
+ *
+ * A solid card rather than the dashed `EmptyState` this borrowed through P4–P5.
+ * An empty state says "there is nothing here yet", which is a normal thing for a
+ * page to say; a caught exception is not that, and wearing the same clothes made
+ * a real failure look like an unfinished screen. This is the one screen in the
+ * app whose entire job is to be reassuring, so P6 built it like a screen that
+ * meant to exist.
+ */
 function ErrorFallback({ error, reset }: FallbackProps) {
   return (
-    <EmptyState
-      icon={<TriangleAlert />}
-      title="Something went wrong"
-      description={
-        <>
-          <p>
+    <Card className="mx-auto max-w-lg py-8">
+      <CardContent className="flex flex-col items-center space-y-4 text-center">
+        <span className="bg-muted text-muted-foreground flex size-12 items-center justify-center rounded-full">
+          <TriangleAlert className="size-6" aria-hidden />
+        </span>
+
+        <div className="space-y-2">
+          <h1 className="font-serif text-2xl tracking-tight">Something went wrong</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
             This page hit an unexpected error and stopped rendering. Your decks and your
             review history are stored server-side — nothing was lost.
           </p>
-          {error.message && (
-            <p className="mt-2 font-mono text-xs break-words">{error.message}</p>
-          )}
-        </>
-      }
-      action={
-        <div className="flex flex-wrap justify-center gap-2">
+        </div>
+
+        {error.message && (
+          <p className="bg-muted text-muted-foreground w-full rounded-md px-3 py-2 text-left font-mono text-xs break-words">
+            {error.message}
+          </p>
+        )}
+
+        <div className="flex flex-wrap justify-center gap-2 pt-1">
           <Button onClick={reset}>Try again</Button>
           <Button variant="outline" asChild>
             <Link to="/dashboard">Back to dashboard</Link>
           </Button>
         </div>
-      }
-    />
+      </CardContent>
+    </Card>
   );
 }
 

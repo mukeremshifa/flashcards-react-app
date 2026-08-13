@@ -46,8 +46,8 @@ authored against the codebase it will actually run in.
 | P3 — Progress    | [P3-progress.md](P3-progress.md)       | ✅ Complete — 2026-08-12                                        |
 | P4 — Ship        | [P4-ship.md](P4-ship.md)               | 🟡 Code complete — 2026-08-13; the deploy itself is the owner's |
 | P5 — Identity    | [P5-identity.md](P5-identity.md)       | ✅ Complete — 2026-08-13                                        |
-| P6 — Surface     | [P6-surface.md](P6-surface.md)         | 📋 Planned, not started                                         |
-| P7 — Landing     | _(planned by P6)_                      | 📋 Not yet planned                                              |
+| P6 — Surface     | [P6-surface.md](P6-surface.md)         | ✅ Complete — 2026-08-13                                        |
+| P7 — Landing     | [P7-landing.md](P7-landing.md)         | 📋 Planned, not started                                         |
 | Post-v1          | [POST-V1.md](POST-V1.md)               | 📋 Backlog, not a phase                                         |
 
 The split that still matters day to day: schema and RLS changes are testable locally
@@ -67,9 +67,12 @@ bridge in `supabase/functions/_shared/` means those files are compiled by two co
 
 Third, new since P3 and finished in P4: the bundle is split. Everything except the auth
 pages, the dashboard and the deck list loads lazily, so `npm run build` prints a dozen
-chunks and the number that matters is the eager one (`index-*.js`). It is **781 kB raw /
-231 kB gzip**, and P4 records why the 400 kB target it was given is unreachable with this
-dependency set — read that table before trying again.
+chunks and the number that matters is the eager one (`index-*.js`). It is **788 kB raw /
+233 kB gzip** after P6, and P4 records why the 400 kB target it was given is unreachable with
+this dependency set — read that table before trying again. P6 added ~6 kB raw to it, all of
+it accounted for: the account menu, the three-state theme control and the `Kbd` primitive
+are new components inside the eager `AppLayout`, plus two lucide icons that were not
+previously imported anywhere. No new dependency entered the first chunk.
 
 The same P2 item is still outstanding and still belongs to the owner: setting
 `GROQ_API_KEY` and `GENERATION_MODEL` as function secrets and running `npm run fn:deploy`.
@@ -84,3 +87,10 @@ that file (theme parity, chroma-0 neutrals, and the grade ramp's lightness order
 shipped icons and social cards in `public/` are **generated** by `npm run brand:assets` from
 `assets/brand/*.svg`; edit the masters, re-run, and commit the result. Re-running must leave
 `git status --porcelain public/` empty.
+
+Fifth, new since P6: that closure is now enforced from the other direction too.
+`src/test/palette.test.ts` walks every `.ts`, `.tsx` and `.css` file under `src/` and fails on
+a numbered Tailwind palette class or a literal colour outside a comment, so "just this one
+green" cannot get back in. P6 also settled the typographic rules a later session would
+otherwise re-litigate — where the serif may appear, that numbers are mono, and what "one
+accent per screen" excludes — all recorded in SPEC §12 under _Closed at P6_.

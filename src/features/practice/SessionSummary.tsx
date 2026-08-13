@@ -5,11 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDurationWords, plural } from '@/lib/format';
 import { GRADES, GRADE_LABELS } from '@/lib/fsrs';
+import { GRADE_TOKEN } from '@/lib/grade-tokens';
 import type { Grade } from '@/lib/schemas';
 
 /**
  * What just happened, and when to come back. Shown when the queue runs out —
  * which, in a working SRS, is most sessions.
+ *
+ * The tally is coloured by the grade ramp rather than left plain, because this
+ * is the one screen where the four ratings are compared against each other. The
+ * accent appearing on Easy here is the ramp doing its job, not a second accent
+ * competing with the badge above it (P6).
  */
 export function SessionSummary({
   reviewed,
@@ -28,12 +34,12 @@ export function SessionSummary({
   const nextDue = nextDueAt ? new Date(nextDueAt) : null;
 
   return (
-    <Card className="mx-auto max-w-lg">
+    <Card className="mx-auto max-w-lg py-8">
       <CardHeader className="items-center text-center">
-        <span className="bg-primary text-primary-foreground mx-auto flex size-10 items-center justify-center rounded-full">
+        <span className="bg-primary text-primary-foreground mx-auto flex size-11 items-center justify-center rounded-full">
           <CheckCircle2Icon className="size-6" aria-hidden />
         </span>
-        <CardTitle>
+        <CardTitle className="mt-1 font-serif text-2xl font-normal">
           {reviewed === 0 ? 'Nothing to review' : `${plural(reviewed, 'card')} reviewed`}
         </CardTitle>
       </CardHeader>
@@ -43,8 +49,15 @@ export function SessionSummary({
           <dl className="grid grid-cols-4 gap-2 text-center">
             {GRADES.map(grade => (
               <div key={grade} className="bg-muted/50 rounded-lg py-3">
-                <dt className="text-muted-foreground text-xs">{GRADE_LABELS[grade]}</dt>
-                <dd className="text-lg font-semibold tabular-nums">
+                <dt className="text-muted-foreground flex items-center justify-center gap-1.5 text-xs">
+                  <span
+                    aria-hidden
+                    className="size-1.5 rounded-full"
+                    style={{ backgroundColor: GRADE_TOKEN[grade] }}
+                  />
+                  {GRADE_LABELS[grade]}
+                </dt>
+                <dd className="mt-1 font-mono text-xl font-semibold tabular-nums">
                   {ratings[grade] ?? 0}
                 </dd>
               </div>
@@ -56,7 +69,7 @@ export function SessionSummary({
           {nextDue ? (
             <p>
               Next card due in{' '}
-              <span className="text-foreground font-medium">
+              <span className="text-foreground font-mono">
                 {formatDurationWords(nextDue.getTime() - now.getTime())}
               </span>
               .
@@ -82,7 +95,7 @@ export function SessionSummary({
               Check for more
             </Button>
           )}
-          <Button asChild>
+          <Button variant="secondary" asChild>
             <Link to="/decks">Back to decks</Link>
           </Button>
         </div>

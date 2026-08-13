@@ -11,7 +11,6 @@ import {
   TrashIcon,
 } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -39,6 +38,14 @@ const KIND_LABELS: Record<CardKind, string> = {
   cloze: 'Cloze',
   mcq: 'Choice',
 };
+
+/**
+ * The densest screen in the product, so P6 made its rhythm quieter rather than
+ * louder: the kind is a small caps label instead of a bordered badge, every
+ * figure is tabular so the columns line up down the page, and the row separator
+ * is the only rule. A hundred badges is a hundred boxes to look past before
+ * reading the card you came for.
+ */
 
 export function DeckDetailPage() {
   const { deckId } = useParams<{ deckId: string }>();
@@ -113,8 +120,8 @@ export function DeckDetailPage() {
           >
             ← All decks
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            {deck.data?.title ?? <Skeleton className="h-7 w-48" />}
+          <h1 className="mt-1 font-serif text-3xl tracking-tight">
+            {deck.data?.title ?? <Skeleton className="h-8 w-48" />}
           </h1>
           {deck.data?.description && (
             <p className="text-muted-foreground mt-1 text-sm">{deck.data.description}</p>
@@ -180,13 +187,13 @@ export function DeckDetailPage() {
               ))}
             </Select>
 
-            <span className="text-muted-foreground text-sm">
+            <span className="text-muted-foreground text-sm tabular-nums">
               {plural(visible.length, 'card')}
             </span>
 
             {selected.size > 0 && (
               <div className="ml-auto flex items-center gap-2">
-                <span className="text-sm">{selected.size} selected</span>
+                <span className="text-sm tabular-nums">{selected.size} selected</span>
                 <Button
                   size="sm"
                   variant="outline"
@@ -226,9 +233,12 @@ export function DeckDetailPage() {
               }
             />
           ) : (
-            <ul className="divide-y rounded-xl border">
+            <ul className="divide-y overflow-hidden rounded-lg border">
               {visible.map(card => (
-                <li key={card.id} className="p-3">
+                <li
+                  key={card.id}
+                  className="hover:bg-muted/40 px-3 py-2.5 transition-colors"
+                >
                   {editingId === card.id ? (
                     <CardEditor
                       defaultValue={parseCardPayload(card)}
@@ -318,16 +328,22 @@ function CardListRow({
             </span>
           )}
         </p>
-        <p className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
-          <Badge variant="outline">{KIND_LABELS[card.kind]}</Badge>
+        <p className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
+          <span className="w-12 shrink-0 tracking-wide uppercase">
+            {KIND_LABELS[card.kind]}
+          </span>
           {suspended ? (
             <span>Suspended</span>
           ) : card.fsrs_state === 'new' ? (
             <span>New</span>
           ) : (
-            <span>Due {formatDueIn(new Date(card.due), new Date())}</span>
+            <span className="font-mono tabular-nums">
+              Due {formatDueIn(new Date(card.due), new Date())}
+            </span>
           )}
-          {card.reps > 0 && <span>· {plural(card.reps, 'review')}</span>}
+          {card.reps > 0 && (
+            <span className="tabular-nums">· {plural(card.reps, 'review')}</span>
+          )}
         </p>
       </div>
 

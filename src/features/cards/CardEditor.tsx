@@ -137,13 +137,24 @@ export function CardEditor({
     <form onSubmit={submit} className={cn('space-y-4', className)} noValidate>
       <div className="space-y-2">
         <Label htmlFor="card-kind">Card type</Label>
-        <div id="card-kind" role="group" aria-label="Card type" className="flex gap-2">
+        {/*
+          A segmented control, not three accent-or-outline buttons. The accent on
+          this form belongs to Save; spending it on "which of three types" as
+          well left the editor with two things claiming to be the primary action
+          (P6).
+        */}
+        <div
+          id="card-kind"
+          role="group"
+          aria-label="Card type"
+          className="bg-muted inline-flex gap-0.5 rounded-md p-0.5"
+        >
           {CARD_KINDS.map(candidate => (
             <Button
               key={candidate}
               type="button"
               size="sm"
-              variant={kind === candidate ? 'default' : 'outline'}
+              variant={kind === candidate ? 'outline' : 'ghost'}
               aria-pressed={kind === candidate}
               onClick={() => changeKind(candidate)}
             >

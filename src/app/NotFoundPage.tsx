@@ -25,8 +25,10 @@ export function NotFoundPage() {
         title="Page not found"
         description={
           <>
-            <p className="font-mono text-xs break-all">{pathname}</p>
-            <p className="mt-2">
+            <p className="bg-muted text-foreground rounded-md px-2 py-1.5 font-mono text-xs break-all">
+              {pathname}
+            </p>
+            <p className="mt-3">
               That address does not match any page in this app. It may have been a typo,
               or a link to something that has since been deleted.
             </p>

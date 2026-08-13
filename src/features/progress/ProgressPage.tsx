@@ -5,6 +5,7 @@ import { CalendarDaysIcon, PlayIcon, PlusIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -30,6 +31,15 @@ import { StreakCard } from './StreakCard';
  * goals, no XP, no badges. A new account has none of that data, and five empty
  * charts is a worse first impression than one sentence pointing at the practice
  * button, so that is what it gets.
+ *
+ * **The page is three tiers, not five equal boxes (P6).** Streak and retention
+ * answer "is any of this working", so they lead. The heatmap is the evidence
+ * behind the streak and sits under it at full width. The forecast and the state
+ * mix are detail — true, useful, and not what anyone opens this page to find
+ * out — so they go last, under a heading that says so. The two figures that
+ * used to be cards of their own, reviews this year and due today, are now the
+ * headline number of the section they belong to, which is where they were being
+ * read from anyway.
  */
 
 /**
@@ -53,10 +63,10 @@ export function ProgressPage() {
   const hasCards = (cards.data?.distribution.total ?? 0) > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <h1 className="font-serif text-3xl tracking-tight">Progress</h1>
+        <p className="text-muted-foreground mt-1 max-w-prose text-sm">
           Everything here is counted from your review log. Nothing is estimated.
         </p>
       </header>
@@ -93,36 +103,9 @@ export function ProgressPage() {
         />
       ) : (
         <>
-          <section className="grid gap-4 sm:grid-cols-3">
+          <section className="grid gap-4 lg:grid-cols-2">
             <StreakCard history={history.data} isPending={history.isPending} />
-            <Card className="py-5">
-              <CardHeader>
-                <CardTitle className="text-muted-foreground text-sm font-medium">
-                  Reviews this year
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-semibold tabular-nums">
-                  {history.data?.total ?? 0}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="py-5">
-              <CardHeader>
-                <CardTitle className="text-muted-foreground text-sm font-medium">
-                  Due today
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {forecast.isPending ? (
-                  <Skeleton className="h-9 w-16" />
-                ) : (
-                  <p className="text-3xl font-semibold tabular-nums">
-                    {forecast.data?.buckets[0]?.total ?? 0}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <RetentionCard history={retention.data} isPending={retention.isPending} />
           </section>
 
           <Card>
@@ -131,6 +114,12 @@ export function ProgressPage() {
               <CardDescription>
                 One cell per study day, which starts at 04:00 in your timezone.
               </CardDescription>
+              <CardAction className="text-right">
+                <p className="font-mono text-2xl leading-none tabular-nums">
+                  {history.data?.total ?? 0}
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs">this year</p>
+              </CardAction>
             </CardHeader>
             <CardContent>
               {history.data && (
@@ -143,36 +132,50 @@ export function ProgressPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <RetentionCard history={retention.data} isPending={retention.isPending} />
-            <StateDistribution
-              states={cards.data}
-              history={retention.data}
-              isPending={cards.isPending}
-            />
-          </div>
+          <section className="space-y-4">
+            <h2 className="text-muted-foreground text-xs tracking-wide uppercase">
+              Detail
+            </h2>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Due forecast</CardTitle>
+                  <CardDescription>
+                    The next {FORECAST_DAYS} days. Today includes everything overdue and
+                    the new cards still allowed under your daily limit.
+                  </CardDescription>
+                  <CardAction className="text-right">
+                    {forecast.isPending ? (
+                      <Skeleton className="h-6 w-10" />
+                    ) : (
+                      <p className="font-mono text-2xl leading-none tabular-nums">
+                        {forecast.data?.buckets[0]?.total ?? 0}
+                      </p>
+                    )}
+                    <p className="text-muted-foreground mt-1 text-xs">due today</p>
+                  </CardAction>
+                </CardHeader>
+                <CardContent>
+                  {forecast.isPending || !forecast.data ? (
+                    <Skeleton className="h-[260px] w-full" />
+                  ) : (
+                    <Suspense fallback={<Skeleton className="h-[260px] w-full" />}>
+                      <ForecastChart
+                        buckets={forecast.data.buckets}
+                        timeZone={forecast.data.timeZone}
+                      />
+                    </Suspense>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Due forecast</CardTitle>
-              <CardDescription>
-                The next {FORECAST_DAYS} days. Today includes everything overdue and the
-                new cards still allowed under your daily limit.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {forecast.isPending || !forecast.data ? (
-                <Skeleton className="h-[260px] w-full" />
-              ) : (
-                <Suspense fallback={<Skeleton className="h-[260px] w-full" />}>
-                  <ForecastChart
-                    buckets={forecast.data.buckets}
-                    timeZone={forecast.data.timeZone}
-                  />
-                </Suspense>
-              )}
-            </CardContent>
-          </Card>
+              <StateDistribution
+                states={cards.data}
+                history={retention.data}
+                isPending={cards.isPending}
+              />
+            </div>
+          </section>
         </>
       )}
     </div>

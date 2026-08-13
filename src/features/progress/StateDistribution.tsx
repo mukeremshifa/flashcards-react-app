@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { addStudyDays, studyDayStart } from '@/lib/day';
 import { formatInterval, plural } from '@/lib/format';
 import { FSRS_STATES, type FsrsStateName } from '@/lib/fsrs';
+import { STATE_TOKEN } from '@/lib/grade-tokens';
 import { memoryTrend, type Trend } from '@/lib/progress';
 import type { CardStates, RetentionHistory } from '@/lib/queries';
 
@@ -34,13 +35,6 @@ const STATE_LABELS: Record<FsrsStateName, string> = {
   learning: 'Learning',
   review: 'Review',
   relearning: 'Relearning',
-};
-
-const STATE_FILL: Record<FsrsStateName, string> = {
-  new: 'var(--color-primary)',
-  learning: 'var(--color-grade-hard)',
-  review: 'var(--color-grade-good)',
-  relearning: 'var(--color-grade-again)',
 };
 
 /** FSRS stability is a number of days; the interval formatter already speaks that. */
@@ -126,7 +120,7 @@ export function StateDistribution({
                 return share === 0 ? null : (
                   <span
                     key={state}
-                    style={{ width: `${share}%`, backgroundColor: STATE_FILL[state] }}
+                    style={{ width: `${share}%`, backgroundColor: STATE_TOKEN[state] }}
                   />
                 );
               })}
@@ -139,11 +133,11 @@ export function StateDistribution({
                     <span
                       aria-hidden
                       className="size-2 rounded-full"
-                      style={{ backgroundColor: STATE_FILL[state] }}
+                      style={{ backgroundColor: STATE_TOKEN[state] }}
                     />
                     {STATE_LABELS[state]}
                   </dt>
-                  <dd className="mt-0.5 font-medium tabular-nums">
+                  <dd className="mt-0.5 font-mono font-medium tabular-nums">
                     {distribution.counts[state]}
                   </dd>
                 </div>
@@ -153,7 +147,7 @@ export function StateDistribution({
             <div className="space-y-2 border-t pt-4">
               <div className="flex items-baseline justify-between text-sm">
                 <span className="text-muted-foreground">Mean stability</span>
-                <span className="font-medium tabular-nums">
+                <span className="font-mono font-medium tabular-nums">
                   {strength.stability === null ? '—' : formatDays(strength.stability)}
                   <span className="text-muted-foreground ml-1.5 text-xs">
                     over {plural(strength.cards, 'card')}
@@ -162,7 +156,7 @@ export function StateDistribution({
               </div>
               <div className="flex items-baseline justify-between text-sm">
                 <span className="text-muted-foreground">Mean difficulty</span>
-                <span className="font-medium tabular-nums">
+                <span className="font-mono font-medium tabular-nums">
                   {strength.difficulty === null
                     ? '—'
                     : `${strength.difficulty.toFixed(1)} / 10`}

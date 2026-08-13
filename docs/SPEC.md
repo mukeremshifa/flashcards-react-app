@@ -751,18 +751,18 @@ concrete payoff of the TypeScript decision.
 
 ## 11. Phasing
 
-| Phase                        | Deliverable                                                                                                                                            | Done when                                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                         | ✅ build + typecheck + 38 tests green; RLS isolation test passes                                             |
-| **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                    | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501`                         |
-| **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                     | ✅ 157 tests green; simulated week schedules correctly; undo restores exactly                                |
-| **P2 — Generation** ✅ done  | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                    | ✅ 251 tests green; pipeline built and typechecked under Deno — see docs/plans/P2-generation.md              |
-| **P3 — Progress** ✅ done    | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                         | ✅ 299 tests green; SQL day buckets proven equal to `studyDayKey` across DST — see docs/plans/P3-progress.md |
-| **P4 — Ship** ✅ done        | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | ✅ 305 tests green; the deploy itself is the owner's — see docs/plans/P4-ship.md                             |
-| **P5 — Identity** ✅ done    | Name; token system (chroma-0 neutrals + `#D0F861`); self-hosted type; mark; generated favicon/PWA/social assets; grade ramp                            | ✅ 324 tests green; `npm run brand:assets` is deterministic — see docs/plans/P5-identity.md                  |
-| **P6 — Surface**             | Per-screen re-skin: shell, practice, generate, progress, decks, auth and system states                                                                 | Every screen reads as one product, and the accent appears once per screen                                    |
-| **P7 — Landing**             | `/` becomes a public marketing route; SEO and social metadata; bundle discipline for a first visit                                                     | A stranger who has never heard of it understands the product before signing up                               |
-| **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes | —                                                                                                            |
+| Phase                        | Deliverable                                                                                                                                                        | Done when                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                                     | ✅ build + typecheck + 38 tests green; RLS isolation test passes                                             |
+| **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                                | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501`                         |
+| **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                                 | ✅ 157 tests green; simulated week schedules correctly; undo restores exactly                                |
+| **P2 — Generation** ✅ done  | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                                | ✅ 251 tests green; pipeline built and typechecked under Deno — see docs/plans/P2-generation.md              |
+| **P3 — Progress** ✅ done    | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                                     | ✅ 299 tests green; SQL day buckets proven equal to `studyDayKey` across DST — see docs/plans/P3-progress.md |
+| **P4 — Ship** ✅ done        | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                                        | ✅ 305 tests green; the deploy itself is the owner's — see docs/plans/P4-ship.md                             |
+| **P5 — Identity** ✅ done    | Name; token system (chroma-0 neutrals + `#D0F861`); self-hosted type; mark; generated favicon/PWA/social assets; grade ramp                                        | ✅ 324 tests green; `npm run brand:assets` is deterministic — see docs/plans/P5-identity.md                  |
+| **P6 — Surface** ✅ done     | Per-screen pass: shell with an account menu and a three-state theme control, serif card fronts, generate readouts, progress hierarchy, deck density, system states | ✅ 346 tests green; the palette is closed by test — see docs/plans/P6-surface.md                             |
+| **P7 — Landing**             | `/` becomes a public marketing route; SEO and social metadata; bundle discipline for a first visit                                                                 | A stranger who has never heard of it understands the product before signing up                               |
+| **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes             | —                                                                                                            |
 
 **P1 before P2 is deliberate.** The LLM is the exciting part; the scheduler is the part that
 must be right. Building generation on top of an unproven scheduler means debugging both at
@@ -794,6 +794,43 @@ reasoning behind each is recoverable later.
   Groq's rate-limit page on 2026-08-12. Re-read them before changing `maxInputChars` or the
   burst limiter; they move, which is why the arithmetic that depends on them is written out
   in `src/lib/quota.ts` rather than left as bare constants.
+
+### Closed at P6 (2026-08-13)
+
+- **Where the serif is allowed to appear.** Three places, and no others: the wordmark, a
+  page's own headline (`h1`, or the title of a card that _is_ the whole screen — the session
+  summary, the error fallback, the auth panels), and the question side of a card. It never
+  sets body copy, labels, buttons, numbers, or any answer. This is the decision most likely
+  to drift, because nothing looks broken when a display face quietly becomes the interface
+  face — it just stops being designed. `CardFace.test.tsx` and `PracticeSession.test.tsx`
+  assert the card-front half of the rule, which is the half that carries the product.
+- **Numbers are set in the mono face, with tabular figures.** Queue positions, intervals,
+  counts, percentages, stability, quota. Digits that do not reflow as a count crosses from 9
+  to 10 are the difference between a figure and a label, and JetBrains Mono was already being
+  shipped for the rating intervals alone.
+- **"The accent at most once per screen" is about emphasis, not about the ramp.** `--primary`
+  marks the one thing to do next and nothing else — so a list of twenty decks has accent
+  buttons on none of its rows, and the review gate puts the accent only on the row the
+  keyboard is actually on. The `--grade-*` ramp is exempt: it is a scale carrying meaning, and
+  `--grade-easy` being the accent is the point of the ramp rather than a second accent
+  competing with the first. The logo's node is exempt for the same kind of reason.
+- **Settings is not a navigation destination.** The shell is the lockup, five links that are
+  the product's loop, and an account control. Settings, theme and sign-out live inside that
+  control, because a nav with seven equal items has no primary path through it. The menu is
+  hand-rolled rather than Radix's: `AppLayout` is in the eager chunk, and a floating-UI
+  dependency in the first bundle a signed-in user downloads costs more than it settles.
+- **The theme control exposes all three states.** P1–P5 shipped a light↔dark flip on top of a
+  provider that has always supported `system` and kept a live `matchMedia` listener — so the
+  first click was a permanent opt-out of a state with no way back. It is now a radio group,
+  and it reports the _chosen_ theme rather than the resolved one: under `system` at night
+  those differ, and marking Dark would claim a choice the user never made.
+- **Charts name their series in text.** The rule P3 set for the heatmap, extended to the
+  forecast and the state mix. Recharts' own `<Legend>` was replaced by `ChartLegend`, outside
+  the responsive container, so the names are the app's own type and are assertable — a legend
+  that exists only inside a canvas-shaped component is a legend nobody can test.
+- **One map from grade and card state to colour**, `src/lib/grade-tokens.ts`. Three files
+  previously agreed only by holding the same four strings, which is the arrangement that let
+  the rating buttons drift away from the tokens through all of P1–P4.
 
 ### Closed at P5 (2026-08-13)
 

@@ -75,7 +75,7 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="font-serif text-3xl tracking-tight">Settings</h1>
 
       <Card>
         <CardHeader>
@@ -167,9 +167,9 @@ export function SettingsPage() {
             </p>
           ) : (
             <>
-              <p className="text-2xl font-semibold tracking-tight">
-                {quota.data.remaining}{' '}
-                <span className="text-muted-foreground text-base font-normal">
+              <p className="font-mono text-3xl leading-none tabular-nums">
+                {quota.data.remaining}
+                <span className="text-muted-foreground ml-2 font-sans text-base">
                   of {quota.data.limit} left
                 </span>
               </p>
@@ -191,7 +191,7 @@ export function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Account</CardTitle>
-          <CardDescription>{user?.email}</CardDescription>
+          <CardDescription className="font-mono">{user?.email}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="outline" onClick={() => void signOut()}>

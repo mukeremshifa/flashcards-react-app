@@ -5,6 +5,7 @@ import { PencilIcon, Undo2Icon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Kbd } from '@/components/ui/kbd';
 import { BrokenCard, CardBack, CardFront } from '@/features/cards/CardFace';
 import { CardEditor } from '@/features/cards/CardEditor';
 import { previewSchedule, type SchedulePreview } from '@/lib/fsrs';
@@ -219,6 +220,8 @@ export function PracticeSession({
     );
   }
 
+  const total = cards.length + rated.length;
+
   return (
     <div
       ref={containerRef}
@@ -226,20 +229,36 @@ export function PracticeSession({
       onKeyDown={onKeyDown}
       role="region"
       aria-label="Practice session"
-      className="focus-visible:ring-ring mx-auto max-w-2xl space-y-4 rounded-xl outline-none focus-visible:ring-2"
+      className="focus-visible:ring-ring mx-auto max-w-2xl space-y-5 rounded-xl outline-none focus-visible:ring-2"
     >
-      <div className="text-muted-foreground flex items-center justify-between text-sm">
-        <span>
-          {cards.length} left · {rated.length} done
-        </span>
-        <div className="flex items-center gap-2">
-          {card.fsrs_state === 'new' && <Badge variant="secondary">New</Badge>}
-          {card.lapses > 0 && <Badge variant="outline">{card.lapses} lapses</Badge>}
+      <div className="space-y-2">
+        <div className="text-muted-foreground flex items-center justify-between text-xs">
+          <span>
+            <span className="text-foreground font-mono tabular-nums">{cards.length}</span>{' '}
+            left · <span className="font-mono tabular-nums">{rated.length}</span> done
+          </span>
+          <div className="flex items-center gap-2">
+            {card.fsrs_state === 'new' && <Badge variant="outline">New</Badge>}
+            {card.lapses > 0 && (
+              <Badge variant="outline">
+                <span className="font-mono tabular-nums">{card.lapses}</span> lapses
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Ink, not the accent. The one accent on this screen is the Easy
+            rating, which is the thing the session is trying to produce. */}
+        <div className="bg-muted h-1 overflow-hidden rounded-full" aria-hidden>
+          <div
+            className="bg-foreground h-full rounded-full transition-[width] duration-300"
+            style={{ width: `${total === 0 ? 0 : (rated.length / total) * 100}%` }}
+          />
         </div>
       </div>
 
-      <Card>
-        <CardContent className="space-y-6">
+      <Card className="py-8">
+        <CardContent className="space-y-6 px-8">
           {editing ? (
             <CardEditor
               defaultValue={payload}
@@ -251,6 +270,7 @@ export function PracticeSession({
           ) : payload ? (
             <>
               <CardFront
+                className="text-2xl"
                 payload={payload}
                 revealed={revealed}
                 selectedOption={selectedOption}
@@ -269,24 +289,30 @@ export function PracticeSession({
                 <Button
                   type="button"
                   variant="secondary"
+                  size="lg"
                   className="w-full"
                   aria-expanded={false}
                   aria-controls="card-answer"
                   onClick={reveal}
                 >
-                  Show answer <kbd className="ml-1 opacity-60">Space</kbd>
+                  Show answer <Kbd className="ml-1">Space</Kbd>
                 </Button>
               ) : (
                 <div
                   id="card-answer"
-                  className={cn('space-y-4 border-t pt-6', 'motion-safe:animate-in')}
+                  className={cn('space-y-6 border-t pt-6', 'motion-safe:animate-in')}
                 >
                   <CardBack payload={payload} />
-                  <RatingButtons
-                    preview={preview}
-                    onRate={rate}
-                    suggested={suggestedGrade}
-                  />
+                  <div className="space-y-2">
+                    <p className="text-muted-foreground text-xs tracking-wide uppercase">
+                      How well did you know it?
+                    </p>
+                    <RatingButtons
+                      preview={preview}
+                      onRate={rate}
+                      suggested={suggestedGrade}
+                    />
+                  </div>
                 </div>
               )}
             </>
@@ -296,8 +322,8 @@ export function PracticeSession({
         </CardContent>
       </Card>
 
-      <div className="text-muted-foreground flex items-center justify-between text-xs">
-        <div className="flex gap-2">
+      <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex gap-1">
           <Button
             type="button"
             variant="ghost"
@@ -305,7 +331,7 @@ export function PracticeSession({
             onClick={() => setEditing(true)}
             disabled={editing}
           >
-            <PencilIcon /> Edit <kbd className="opacity-60">E</kbd>
+            <PencilIcon /> Edit <Kbd>E</Kbd>
           </Button>
           <Button
             type="button"
@@ -314,10 +340,12 @@ export function PracticeSession({
             onClick={undo}
             disabled={rated.length === 0 || undoReview.isPending}
           >
-            <Undo2Icon /> Undo <kbd className="opacity-60">U</kbd>
+            <Undo2Icon /> Undo <Kbd>U</Kbd>
           </Button>
         </div>
-        <span className="hidden sm:inline">Space reveals · 1–4 rate</span>
+        <span className="hidden items-center gap-1.5 sm:inline-flex">
+          <Kbd>Space</Kbd> reveals · <Kbd>1</Kbd>–<Kbd>4</Kbd> rate
+        </span>
       </div>
     </div>
   );

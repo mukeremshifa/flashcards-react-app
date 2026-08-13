@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -23,6 +24,11 @@ import type { RetentionHistory } from '@/lib/queries';
  * on mature cards mean opposite things, and one blended figure hides which one
  * you have. So does a percentage with no denominator — 100% over four reviews
  * is not a fact about your memory, and this shows the four.
+ *
+ * P6 gave the overall figure display weight and moved the window buttons into
+ * the header. The per-state split stays exactly as legible as it was: it is the
+ * honest part, and burying it under one big number would undo the reason this
+ * card is split at all.
  */
 
 const WINDOWS = [7, 30, 90] as const;
@@ -43,8 +49,10 @@ function Percent({ bucket }: { bucket: RetentionBucket }) {
   }
   return (
     <>
-      <span className="font-medium tabular-nums">{Math.round(bucket.percent)}%</span>
-      <span className="text-muted-foreground ml-1.5 text-xs tabular-nums">
+      <span className="font-mono font-medium tabular-nums">
+        {Math.round(bucket.percent)}%
+      </span>
+      <span className="text-muted-foreground ml-1.5 font-mono text-xs tabular-nums">
         {bucket.recalled}/{bucket.reviewed}
       </span>
     </>
@@ -72,24 +80,29 @@ export function RetentionCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Retention</CardTitle>
+        <CardTitle className="text-muted-foreground text-sm font-medium">
+          Retention
+        </CardTitle>
         <CardDescription>Reviews graded Hard or better.</CardDescription>
+        <CardAction>
+          <div className="bg-muted flex gap-0.5 rounded-md p-0.5">
+            {WINDOWS.map(window => (
+              <Button
+                key={window}
+                size="xs"
+                variant={window === days ? 'outline' : 'ghost'}
+                aria-pressed={window === days}
+                className="font-mono"
+                onClick={() => setDays(window)}
+              >
+                {window}d
+              </Button>
+            ))}
+          </div>
+        </CardAction>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex gap-1">
-          {WINDOWS.map(window => (
-            <Button
-              key={window}
-              size="sm"
-              variant={window === days ? 'secondary' : 'ghost'}
-              aria-pressed={window === days}
-              onClick={() => setDays(window)}
-            >
-              {window}d
-            </Button>
-          ))}
-        </div>
 
+      <CardContent className="space-y-4">
         {isPending || !stats ? (
           <Skeleton className="h-40 w-full" />
         ) : stats.overall.reviewed === 0 ? (
@@ -99,11 +112,17 @@ export function RetentionCard({
           </p>
         ) : (
           <>
-            <div className="flex items-baseline justify-between border-b pb-3">
-              <span className="text-sm">All reviews</span>
-              <span className="text-lg">
-                <Percent bucket={stats.overall} />
-              </span>
+            <div className="border-b pb-4">
+              <p className="font-mono text-4xl leading-none tabular-nums">
+                {stats.overall.percent === null
+                  ? '—'
+                  : `${Math.round(stats.overall.percent)}%`}
+              </p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                across{' '}
+                <span className="font-mono tabular-nums">{stats.overall.reviewed}</span>{' '}
+                {stats.overall.reviewed === 1 ? 'review' : 'reviews'} in {days} days
+              </p>
             </div>
 
             <dl className="space-y-2 text-sm">

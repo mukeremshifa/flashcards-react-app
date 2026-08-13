@@ -14,6 +14,10 @@ import type { ReviewHistory } from '@/lib/queries';
  * The empty state matters more here than anywhere. On day one there is no
  * streak, and a big grey zero framed as an achievement reads as failure — so it
  * says what makes the number move instead.
+ *
+ * P6 promoted it to one of the two cards that lead the page, so the number is
+ * set at display size in the mono face. Mono because the digits are the point:
+ * tabular figures do not reflow as the count crosses from 9 to 10.
  */
 export function StreakCard({
   history,
@@ -30,7 +34,7 @@ export function StreakCard({
   const reviewedToday = history ? (history.counts.get(history.today) ?? 0) > 0 : false;
 
   return (
-    <Card className="py-5">
+    <Card>
       <CardHeader>
         <CardTitle className="text-muted-foreground flex items-center gap-1.5 text-sm font-medium">
           <FlameIcon className="size-4" aria-hidden />
@@ -39,23 +43,23 @@ export function StreakCard({
       </CardHeader>
       <CardContent>
         {isPending || !streak ? (
-          <Skeleton className="h-9 w-24" />
+          <Skeleton className="h-11 w-28" />
         ) : history?.total === 0 ? (
           <>
-            <p className="text-3xl font-semibold tabular-nums">0</p>
-            <p className="text-muted-foreground mt-1 text-sm">
+            <p className="font-mono text-4xl leading-none tabular-nums">0</p>
+            <p className="text-muted-foreground mt-3 text-sm">
               Rate one card and the streak starts today.
             </p>
           </>
         ) : (
           <>
-            <p className="text-3xl font-semibold tabular-nums">
+            <p className="font-mono text-4xl leading-none tabular-nums">
               {streak.current}
-              <span className="text-muted-foreground ml-1.5 text-base font-normal">
+              <span className="text-muted-foreground ml-2 font-sans text-base">
                 {streak.current === 1 ? 'day' : 'days'}
               </span>
             </p>
-            <p className="text-muted-foreground mt-1 text-sm">
+            <p className="text-muted-foreground mt-3 text-sm">
               Longest {plural(streak.longest, 'day')} ·{' '}
               {reviewedToday
                 ? 'today is counted'

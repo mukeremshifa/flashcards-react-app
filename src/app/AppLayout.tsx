@@ -1,71 +1,67 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
-  BarChart3,
-  Layers,
-  LayoutDashboard,
-  Moon,
-  Play,
-  Settings,
-  Sparkles,
-  Sun,
+  BarChart3Icon,
+  LayersIcon,
+  LayoutDashboardIcon,
+  PlayIcon,
+  SparklesIcon,
 } from 'lucide-react';
+
 import { LogoLockup } from '@/components/Logo';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { AccountMenu } from './AccountMenu';
 import { RouteErrorBoundary } from './ErrorBoundary';
-import { useTheme } from './theme';
+
+/**
+ * The shell: identity on the left, the five places you go in the middle, and
+ * the account on the right.
+ *
+ * Settings is deliberately not the sixth item. Through P1–P5 the nav was six
+ * peer links and a theme button in a wrapping row, which gave equal weight to
+ * "practise" and "change your timezone" and left no shape for the eye to
+ * follow. The five that remain are the product's actual loop, in the order it
+ * is lived: see what is due, find a deck, make cards, practise, look back.
+ */
 
 const NAV = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/decks', label: 'Decks', icon: Layers },
-  { to: '/create/text', label: 'Create', icon: Sparkles },
-  { to: '/practice', label: 'Practice', icon: Play },
-  { to: '/progress', label: 'Progress', icon: BarChart3 },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
+  { to: '/decks', label: 'Decks', icon: LayersIcon },
+  { to: '/create/text', label: 'Create', icon: SparklesIcon },
+  { to: '/practice', label: 'Practice', icon: PlayIcon },
+  { to: '/progress', label: 'Progress', icon: BarChart3Icon },
 ] as const;
-
-function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
-  const next = resolvedTheme === 'dark' ? 'light' : 'dark';
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(next)}
-      aria-label={`Switch to ${next} theme`}
-    >
-      {resolvedTheme === 'dark' ? (
-        <Sun className="size-4" />
-      ) : (
-        <Moon className="size-4" />
-      )}
-    </Button>
-  );
-}
 
 export function AppLayout() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="border-b">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-3">
+      {/* Sticky: practice and the review gate are long scrolling pages, and the
+          way out of them should not be a scroll away. */}
+      <header className="bg-background/85 sticky top-0 z-40 border-b backdrop-blur-sm">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-6 px-4">
           <NavLink
             to="/dashboard"
-            className="focus-visible:ring-ring rounded-md outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            aria-label="SynapseDeck home"
+            className="focus-visible:ring-ring shrink-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           >
             <LogoLockup />
           </NavLink>
-          <nav aria-label="Main" className="flex flex-1 flex-wrap gap-1">
+
+          <nav aria-label="Main" className="flex h-full min-w-0 flex-1 items-center">
             {NAV.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
                 className={({ isActive }) =>
                   cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
-                    'focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none',
+                    'relative flex h-full items-center gap-1.5 px-3 text-sm transition-colors',
+                    'focus-visible:ring-ring rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-inset',
+                    // The indicator is ink, not the accent: every screen already
+                    // spends its one accent on the thing to do next, and a nav
+                    // that also glows competes with it on every page.
+                    'after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full',
                     isActive
-                      ? 'bg-secondary text-secondary-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
+                      ? 'text-foreground after:bg-foreground font-medium'
+                      : 'text-muted-foreground hover:text-foreground after:bg-transparent',
                   )
                 }
               >
@@ -74,21 +70,30 @@ export function AppLayout() {
               </NavLink>
             ))}
           </nav>
-          <ThemeToggle />
+
+          <AccountMenu />
         </div>
       </header>
 
       {/* Inside the layout, so a page that throws keeps the nav and the user
           can walk out of it. The root boundary in providers.tsx catches the
           case where the layout itself is what broke. */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
         <RouteErrorBoundary>
           <Outlet />
         </RouteErrorBoundary>
       </main>
 
-      <footer className="text-muted-foreground border-t px-4 py-4 text-center text-xs">
-        Every number on this site is counted from your own review log · see docs/SPEC.md
+      {/* P5 left this pointing at `docs/SPEC.md`, which is a reference to a file
+          in a repository nobody reading the footer can open. The claim was the
+          part worth keeping. */}
+      <footer className="border-t">
+        <div className="text-muted-foreground mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-xs">
+          <span className="text-foreground font-serif text-sm">SynapseDeck</span>
+          <span>
+            Every number here is counted from your own review log — nothing is estimated.
+          </span>
+        </div>
       </footer>
     </div>
   );

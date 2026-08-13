@@ -7,6 +7,9 @@ import { cn } from '@/lib/utils';
  * SPEC §8.4: the blank is announced as "blank", not rendered as a row of
  * underscores. A screen-reader user hearing "The mitochondrion is the
  * ___________ of the cell" hears nothing at all where the question is.
+ *
+ * Set in the display face, like every other card front (P6) — a cloze sentence
+ * *is* the question, not a caption above one.
  */
 export function ClozeText({
   text,
@@ -20,7 +23,7 @@ export function ClozeText({
   const segments = parseCloze(text);
 
   return (
-    <p className={cn('text-lg leading-relaxed', className)}>
+    <p className={cn('font-serif text-xl leading-snug', className)}>
       {segments.map((segment, index) =>
         segment.blank ? (
           <span

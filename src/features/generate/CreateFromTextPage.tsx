@@ -27,6 +27,7 @@ import {
   type CardKind,
   type GenerateRequestInput,
 } from '@/lib/schemas';
+import { cn } from '@/lib/utils';
 import { StagingList } from './StagingList';
 import { useGenerateCards } from './useGenerateCards';
 
@@ -94,8 +95,8 @@ export function CreateFromTextPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Create from text</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="font-serif text-3xl tracking-tight">Create from text</h1>
+        <p className="text-muted-foreground max-w-prose text-sm">
           Paste a passage and cards are written from it. You approve every card before it
           enters a deck.
         </p>
@@ -133,12 +134,9 @@ export function CreateFromTextPage() {
                   aria-invalid={Boolean(form.formState.errors.text)}
                   {...form.register('text')}
                 />
+                <SourceMeter chars={stats.chars} tokens={stats.tokens} />
                 <div className="text-muted-foreground flex flex-wrap justify-between gap-2 text-xs">
-                  <span>
-                    {stats.chars.toLocaleString()} characters · about{' '}
-                    {stats.tokens.toLocaleString()} tokens (an estimate, not a
-                    measurement)
-                  </span>
+                  <span>an estimate, not a measurement</span>
                   <QuotaNote
                     remaining={quota.data?.remaining}
                     limit={quota.data?.limit}
@@ -254,15 +252,27 @@ function GenerationPanel({
   const pending = streaming ? Math.max(0, state.expected - state.cards.length) : 0;
   const hasCards = state.cards.length > 0;
 
+  const arrived = state.cards.length;
+  const progress =
+    state.expected > 0 ? Math.min(100, (arrived / state.expected) * 100) : 0;
+
   return (
     <div className="space-y-4">
-      <Card className="py-4">
+      {/* Sticky: the list below grows past the fold while it fills, and the count
+          and the Stop button are the two things that must not scroll away. */}
+      <Card className="bg-background/90 sticky top-20 z-30 gap-4 py-4 backdrop-blur-sm">
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-medium">
-              {streaming
-                ? `Writing cards — ${state.cards.length} of ${state.expected} so far`
-                : `${plural(state.cards.length, 'card')} ready`}
+              {streaming ? (
+                <>
+                  Writing cards —{' '}
+                  <span className="font-mono tabular-nums">{arrived}</span> of{' '}
+                  <span className="font-mono tabular-nums">{state.expected}</span> so far
+                </>
+              ) : (
+                `${plural(arrived, 'card')} ready`
+              )}
             </p>
             <p className="text-muted-foreground text-sm">
               {streaming
@@ -288,6 +298,17 @@ function GenerationPanel({
             )}
           </div>
         </CardContent>
+
+        {streaming && (
+          <CardContent>
+            <div className="bg-muted h-1 overflow-hidden rounded-full" aria-hidden>
+              <div
+                className="bg-foreground h-full rounded-full transition-[width] duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {state.error && <StreamError message={state.error.message} />}
@@ -326,11 +347,60 @@ function StreamError({ message }: { message: string }) {
   );
 }
 
+/**
+ * How long the passage is, against the two limits that decide whether it can be
+ * sent at all.
+ *
+ * A character count alone answers "how many" and not "is that enough" — the
+ * question someone pasting a page actually has. The bar puts the count between
+ * the minimum and the maximum, so being 400 characters short reads as a
+ * distance rather than as a number to compare against a sentence in the card
+ * header. The limits themselves are still enforced server-side (SPEC §7.5);
+ * this is only the readout.
+ */
+function SourceMeter({ chars, tokens }: { chars: number; tokens: number }) {
+  const { minChars, maxChars } = GENERATION_LIMITS;
+  const filled = Math.min(100, (chars / maxChars) * 100);
+  const short = chars > 0 && chars < minChars;
+  const over = chars > maxChars;
+
+  return (
+    <div className="space-y-1.5 pt-1">
+      <div className="bg-muted relative h-1 overflow-hidden rounded-full">
+        <div
+          className={cn(
+            'h-full rounded-full transition-[width] duration-200',
+            over ? 'bg-destructive' : short ? 'bg-muted-foreground' : 'bg-foreground',
+          )}
+          style={{ width: `${filled}%` }}
+        />
+        {/* Where "long enough to be worth sending" starts. */}
+        <span
+          aria-hidden
+          className="bg-background absolute inset-y-0 w-px"
+          style={{ left: `${(minChars / maxChars) * 100}%` }}
+        />
+      </div>
+      <p className="text-muted-foreground text-xs">
+        <span className="text-foreground font-mono tabular-nums">
+          {chars.toLocaleString()}
+        </span>{' '}
+        of {maxChars.toLocaleString()} characters · about{' '}
+        <span className="font-mono tabular-nums">{tokens.toLocaleString()}</span> tokens
+        {short && ` · ${(minChars - chars).toLocaleString()} more to reach the minimum`}
+        {over && ` · ${(chars - maxChars).toLocaleString()} over the maximum`}
+      </p>
+    </div>
+  );
+}
+
 function QuotaNote({ remaining, limit }: { remaining?: number; limit?: number }) {
   if (remaining === undefined || limit === undefined) return null;
   return (
     <span>
-      {remaining} of {limit} generations left this month ·{' '}
+      <span className="text-foreground font-mono tabular-nums">{remaining}</span> of{' '}
+      <span className="font-mono tabular-nums">{limit}</span> generations left this month
+      ·{' '}
       <Link to="/settings" className="underline underline-offset-4">
         settings
       </Link>

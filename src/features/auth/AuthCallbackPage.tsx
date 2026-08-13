@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { LogoLockup } from '@/components/Logo';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -91,7 +92,10 @@ export function AuthCallbackPage() {
   }, [navigate]);
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-12">
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-6 px-4 py-12">
+      {/* A bare line of grey text on a white page is what a broken redirect
+          looks like. The mark says the link landed somewhere real. */}
+      <LogoLockup />
       <p className="text-muted-foreground text-center text-sm" role="status">
         {status}
       </p>

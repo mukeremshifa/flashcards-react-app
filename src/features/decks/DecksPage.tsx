@@ -50,7 +50,7 @@ export function DecksPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Decks</h1>
+        <h1 className="font-serif text-3xl tracking-tight">Decks</h1>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
             <Link to="/create/text">
@@ -174,16 +174,16 @@ function DeckRow({ deck, onDelete }: { deck: DeckWithCounts; onDelete: () => voi
   const resumable = deck.draftCount > 0;
 
   return (
-    <Card className="py-4">
+    <Card className="hover:border-foreground/25 py-4 transition-colors">
       <CardContent className="flex flex-wrap items-center gap-4">
         <div className="min-w-0 flex-1">
           <Link
             to={`/decks/${deck.id}`}
-            className="font-medium underline-offset-4 hover:underline"
+            className="focus-visible:ring-ring rounded-sm font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-2"
           >
             {deck.title}
           </Link>
-          <p className="text-muted-foreground mt-0.5 text-sm">
+          <p className="text-muted-foreground mt-0.5 text-sm tabular-nums">
             {plural(deck.cardCount, 'card')}
             {deck.dueCount > 0 && ` · ${deck.dueCount} due`}
             {deck.newCount > 0 && ` · ${deck.newCount} new`}
@@ -194,26 +194,33 @@ function DeckRow({ deck, onDelete }: { deck: DeckWithCounts; onDelete: () => voi
         {generating ? (
           <Badge variant="secondary">Writing cards…</Badge>
         ) : resumable ? (
-          <Badge variant="secondary">{deck.draftCount} to review</Badge>
+          <Badge variant="secondary">
+            <span className="font-mono tabular-nums">{deck.draftCount}</span> to review
+          </Badge>
         ) : ready > 0 ? (
-          <Badge variant="secondary">{ready} ready</Badge>
+          <Badge variant="secondary">
+            <span className="font-mono tabular-nums">{ready}</span> ready
+          </Badge>
         ) : (
           <Badge variant="outline">Up to date</Badge>
         )}
 
+        {/*
+          Every button in this list is `outline` or quieter, including the ones
+          on a deck with work waiting. Twenty rows with an accent button each is
+          twenty primary actions, which is none — the one accent on this screen
+          belongs to "New deck" in the header (P6). The badge is what says which
+          row has something to do.
+        */}
         <div className="flex gap-1">
           {resumable && (
-            <Button asChild size="sm">
+            <Button asChild size="sm" variant="secondary">
               <Link to={`/create/review/${deck.id}`}>
                 <SparklesIcon /> Review cards
               </Link>
             </Button>
           )}
-          <Button
-            asChild
-            size="sm"
-            variant={ready > 0 && !resumable ? 'default' : 'outline'}
-          >
+          <Button asChild size="sm" variant="outline">
             <Link to={`/practice/${deck.id}`}>
               <PlayIcon /> Practise
             </Link>

@@ -5,6 +5,7 @@ import { CheckCheckIcon, PlayIcon, SparklesIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Kbd } from '@/components/ui/kbd';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { plural } from '@/lib/format';
@@ -291,10 +292,14 @@ function ReviewGate({
     >
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{deckTitle}</h1>
+          <h1 className="font-serif text-3xl tracking-tight">{deckTitle}</h1>
           <p className="text-muted-foreground text-sm">
-            {plural(staged.length, 'card')} to review · {tally.accepted} accepted ·{' '}
-            {tally.rejected} rejected
+            <span className="text-foreground font-mono tabular-nums">
+              {staged.length}
+            </span>{' '}
+            to review · <span className="font-mono tabular-nums">{tally.accepted}</span>{' '}
+            accepted · <span className="font-mono tabular-nums">{tally.rejected}</span>{' '}
+            rejected
           </p>
         </div>
         <div className="flex gap-2">
@@ -307,11 +312,29 @@ function ReviewGate({
         </div>
       </header>
 
-      <p className="text-muted-foreground text-xs">
-        <kbd>A</kbd> accept · <kbd>R</kbd> reject · <kbd>E</kbd> edit · <kbd>↑</kbd>
-        <kbd>↓</kbd> move. Rejecting deletes the card; leaving the page keeps the rest as
-        drafts.
-      </p>
+      {/*
+        The shortcuts, stated once and kept on screen. P2 bound A/R/E because
+        judging eighty cards with a mouse is what makes people accept the bad
+        ones; a shortcut nobody is told about does not do that job.
+      */}
+      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-dashed px-3 py-2 text-xs">
+        <span className="inline-flex items-center gap-1.5">
+          <Kbd>A</Kbd> accept
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Kbd>R</Kbd> reject
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Kbd>E</Kbd> edit
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Kbd>↑</Kbd>
+          <Kbd>↓</Kbd> move
+        </span>
+        <span className="border-l pl-3">
+          Rejecting deletes the card; leaving the page keeps the rest as drafts.
+        </span>
+      </div>
 
       {unreadable > 0 && (
         <p className="text-muted-foreground rounded-lg border border-dashed p-3 text-sm">
@@ -374,7 +397,7 @@ function GateSummary({
   return (
     <Card className="mx-auto max-w-lg">
       <CardContent className="space-y-4 text-center">
-        <h1 className="text-xl font-semibold tracking-tight">“{deckTitle}” is ready</h1>
+        <h1 className="font-serif text-2xl tracking-tight">“{deckTitle}” is ready</h1>
         <p className="text-muted-foreground text-sm">
           {plural(tally.accepted, 'card')} accepted, {tally.rejected} rejected. The
           accepted cards are in the new queue and will come up in your next session.
