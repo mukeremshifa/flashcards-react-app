@@ -1,0 +1,268 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
+import { LogoLockup } from '@/components/Logo';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { supabase } from '@/lib/supabase';
+import { Credentials, SignupInput } from '@/lib/schemas';
+import { detectTimeZone } from '@/lib/day';
+
+/**
+ * Sign in and sign up.
+ *
+ * Supabase's own error text is shown verbatim. "Email not confirmed" and
+ * "Invalid login credentials" mean genuinely different things, and replacing
+ * them with one friendly sentence leaves a user with an unconfirmed address
+ * retyping a password that was right all along.
+ *
+ * Until P7 builds a landing page, these two screens and the 404 are the entire
+ * first impression: a stranger who follows a link here has been told the product
+ * name and nothing else. Hence the line under the lockup — it is the only place
+ * in the app today that says what SynapseDeck is for.
+ */
+
+/** One sentence, and the only marketing claim in the build. It has to be true. */
+const TAGLINE =
+  'Cards written from your own notes, scheduled by how well you remember them.';
+
+function AuthShell({
+  title,
+  description,
+  children,
+  footer,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  footer: React.ReactNode;
+}) {
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-12">
+      <div className="mb-8 flex flex-col items-center gap-3 text-center">
+        <LogoLockup />
+        <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
+          {TAGLINE}
+        </p>
+      </div>
+      <Card className="py-7">
+        <CardHeader>
+          <CardTitle className="font-serif text-2xl font-normal">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">{children}</CardContent>
+      </Card>
+      <p className="text-muted-foreground mt-6 text-center text-sm">{footer}</p>
+    </main>
+  );
+}
+
+function FormError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="text-destructive text-sm">
+      {message}
+    </p>
+  );
+}
+
+export function LoginPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // /auth/callback redirects here with a reason when a confirmation or recovery
+  // link fails. Shown in the same place as a sign-in error, and cleared by the
+  // next attempt, so there is only ever one message to read.
+  const [serverError, setServerError] = useState<string | null>(
+    () => (location.state as { authMessage?: string } | null)?.authMessage ?? null,
+  );
+
+  const form = useForm<Credentials>({
+    resolver: zodResolver(Credentials),
+    defaultValues: { email: '', password: '' },
+  });
+
+  const onSubmit = form.handleSubmit(async values => {
+    setServerError(null);
+    const { error } = await supabase.auth.signInWithPassword(values);
+    if (error) {
+      setServerError(error.message);
+      return;
+    }
+    // Resume whatever they were trying to reach before the guard intervened.
+    const from = (location.state as { from?: { pathname: string } } | null)?.from;
+    navigate(from?.pathname ?? '/dashboard', { replace: true });
+  });
+
+  return (
+    <AuthShell
+      title="Sign in"
+      description="Your decks and your review history are waiting."
+      footer={
+        <>
+          No account yet?{' '}
+          <Link to="/signup" className="text-foreground underline underline-offset-4">
+            Create one
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            autoFocus
+            aria-invalid={Boolean(form.formState.errors.email)}
+            {...form.register('email')}
+          />
+          <FormError message={form.formState.errors.email?.message} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            aria-invalid={Boolean(form.formState.errors.password)}
+            {...form.register('password')}
+          />
+          <FormError message={form.formState.errors.password?.message} />
+        </div>
+
+        <FormError message={serverError ?? undefined} />
+
+        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? 'Signing in…' : 'Sign in'}
+        </Button>
+      </form>
+    </AuthShell>
+  );
+}
+
+export function SignupPage() {
+  const navigate = useNavigate();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [confirmationSent, setConfirmationSent] = useState(false);
+
+  const form = useForm<SignupInput>({
+    resolver: zodResolver(SignupInput),
+    defaultValues: { email: '', password: '', display_name: '' },
+  });
+
+  const onSubmit = form.handleSubmit(async values => {
+    setServerError(null);
+    const { data, error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: {
+        // Read by the on_auth_user_created trigger, which creates the profile
+        // row (§5.6) — so the name is set before the app first reads it.
+        data: {
+          display_name: values.display_name?.trim() || null,
+          timezone: detectTimeZone(),
+        },
+      },
+    });
+
+    if (error) {
+      setServerError(error.message);
+      return;
+    }
+
+    // With email confirmation on, sign-up returns a user but no session. Saying
+    // "check your inbox" is the whole difference between working and broken here.
+    if (!data.session) {
+      setConfirmationSent(true);
+      return;
+    }
+    navigate('/dashboard', { replace: true });
+  });
+
+  if (confirmationSent) {
+    return (
+      <AuthShell
+        title="Check your inbox"
+        description={`We sent a confirmation link to ${form.getValues('email')}.`}
+        footer={
+          <Link to="/login" className="text-foreground underline underline-offset-4">
+            Back to sign in
+          </Link>
+        }
+      >
+        <p className="text-muted-foreground text-sm">
+          Open the link to finish creating your account. You can close this tab.
+        </p>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell
+      title="Create account"
+      description="Free, and your decks stay private to you."
+      footer={
+        <>
+          Already have an account?{' '}
+          <Link to="/login" className="text-foreground underline underline-offset-4">
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <div className="space-y-2">
+          <Label htmlFor="display_name">Name (optional)</Label>
+          <Input
+            id="display_name"
+            autoComplete="name"
+            {...form.register('display_name')}
+          />
+          <FormError message={form.formState.errors.display_name?.message} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            aria-invalid={Boolean(form.formState.errors.email)}
+            {...form.register('email')}
+          />
+          <FormError message={form.formState.errors.email?.message} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            aria-invalid={Boolean(form.formState.errors.password)}
+            {...form.register('password')}
+          />
+          <FormError message={form.formState.errors.password?.message} />
+        </div>
+
+        <FormError message={serverError ?? undefined} />
+
+        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? 'Creating account…' : 'Create account'}
+        </Button>
+      </form>
+    </AuthShell>
+  );
+}

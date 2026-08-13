@@ -1,0 +1,5 @@
+{
+  "expectedMajor": 17,
+  "why": "The Supabase project (cnlnsaamiujselyuowzx) runs Postgres 17. Tests must run the same major, so migrations cannot pass locally and fail on db push. PGlite 0.4.x ships PG 17.5; PGlite 0.5.x ships PG 18.3 — do not bump PGlite across that line without upgrading the Supabase project first and changing this number.",
+  "checkedAgainstProduction": "2026-08-12"
+}

@@ -1,0 +1,21 @@
+# One public page, and one HTML file behind every address in the app.
+#
+# P5 wrote this as an Allow on the root plus a Disallow per authenticated route.
+# P7 checked that list against the route table (SPEC §8.2) and found it had
+# already drifted — /account, /login and /signup were never in it — which is the
+# failure mode of enumerating routes in a file nobody edits when routes change.
+#
+# So: blanket Disallow, exact-match Allow on the root. It is also the more
+# accurate rule. vercel.json rewrites /(.*) to index.html, so every path serves
+# the same document with the same <title> and description; a crawler following
+# /login or /dashboard gets a duplicate of the landing page at a second address,
+# not a new page. The authenticated routes are behind a client-side guard, so
+# they are not secret — they are just not worth crawling.
+#
+# `/$` is an exact match on the root and wins over `Disallow: /` by specificity
+# (RFC 9309 §2.2.2, and every crawler that matters has honoured it for years).
+User-agent: *
+Allow: /$
+Disallow: /
+
+Sitemap: https://synapsedeck.mukeremshifa.com/sitemap.xml

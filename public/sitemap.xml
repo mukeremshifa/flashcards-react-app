@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One route, one entry (P7 task 4). Written by hand rather than generated: a
+  build step that emits a single static URL is a build step to maintain forever
+  for output that never changes.
+
+  The origin was a __SITE_ORIGIN__ token until the domain existed. It does now:
+  synapsedeck.mukeremshifa.com, served by Vercel, DNS on Cloudflare. If the
+  origin ever moves, it appears in three places — here, public/robots.txt, and
+  the og:url / og:image / twitter:image tags in index.html.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://synapsedeck.mukeremshifa.com/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

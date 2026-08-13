@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+
+    /* Strictness. `strict` alone leaves array/object index access typed as
+       non-undefined, which is exactly how a practice queue crashes on an empty
+       deck — noUncheckedIndexedAccess is the point of turning TS on here. */
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": false,
+
+    /* Bundler-oriented: Vite emits, tsc only checks. */
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    /* True for one reason: four files under src/lib are imported *by the Deno
+       Edge Function* through supabase/functions/_shared, and Deno resolves a
+       relative import only with its extension. Writing "./schemas.ts" in those
+       files is what lets the function share the real module instead of a copy
+       (SPEC §9). Everything Vite bundles is unaffected — it resolves both. */
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    // "node" is here for the test harness only (it reads migration files from
+    // disk); nothing under src/ outside src/test/ should import node: builtins.
+    "types": ["vitest/globals", "@testing-library/jest-dom", "node"]
+  },
+  "include": ["src"],
+  "exclude": ["supabase/functions"]
+}
