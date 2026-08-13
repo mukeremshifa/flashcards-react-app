@@ -47,8 +47,19 @@ authored against the codebase it will actually run in.
 | P4 — Ship        | [P4-ship.md](P4-ship.md)               | 🟡 Code complete — 2026-08-13; the deploy itself is the owner's |
 | P5 — Identity    | [P5-identity.md](P5-identity.md)       | ✅ Complete — 2026-08-13                                        |
 | P6 — Surface     | [P6-surface.md](P6-surface.md)         | ✅ Complete — 2026-08-13                                        |
-| P7 — Landing     | [P7-landing.md](P7-landing.md)         | 📋 Planned, not started                                         |
+| P7 — Landing     | [P7-landing.md](P7-landing.md)         | ✅ Complete — 2026-08-13                                        |
 | Post-v1          | [POST-V1.md](POST-V1.md)               | 📋 Backlog, not a phase                                         |
+
+**P7 was the last phase, and the board is closed.** SPEC §11 lists nothing between P7 and
+Post-v1, so there is no P8 plan file and this is not an omission: writing one would mean
+inventing a phase to fill a row. Everything that remains is either in
+[POST-V1.md](POST-V1.md), each entry with the condition that should start it, or on the
+owner's list below — and the owner's list is not work a session can plan its way out of.
+
+Two items moved into POST-V1 with P7 rather than being left implied by their absence: the
+**custom domain**, which three files now wait on with a `__SITE_ORIGIN__` token, and a
+**mobile layout**, which the landing page is the first screen to state out loud that the app
+does not have.
 
 The split that still matters day to day: schema and RLS changes are testable locally
 against PGlite (`npm test`), but anything touching Supabase Auth needs the real project,
@@ -94,6 +105,14 @@ that file (theme parity, chroma-0 neutrals, and the grade ramp's lightness order
 shipped icons and social cards in `public/` are **generated** by `npm run brand:assets` from
 `assets/brand/*.svg`; edit the masters, re-run, and commit the result. Re-running must leave
 `git status --porcelain public/` empty.
+
+Sixth, new since P7: `/` is public. It is the one route an anonymous request can reach with
+anything on it, and the rule that keeps it cheap is not a kB figure but a boundary — the
+landing page's module graph may not touch `@/lib/queries`, `@/lib/supabase` or another
+feature. Two tests hold it: `LandingPage.test.tsx` walks that graph transitively, and
+`landing-requests.test.tsx` renders the real providers and route table with `fetch` and
+`WebSocket` stubbed to fail, so "makes zero network requests" is an assertion rather than
+something somebody once saw in a network panel.
 
 Fifth, new since P6: that closure is now enforced from the other direction too.
 `src/test/palette.test.ts` walks every `.ts`, `.tsx` and `.css` file under `src/` and fails on

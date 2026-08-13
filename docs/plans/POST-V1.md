@@ -1,7 +1,12 @@
 # Post-v1 — the backlog
 
-Not a phase. There is no P5: v1 is the product SPEC §1 describes, and everything below is
-something v1 deliberately does not do (SPEC §11).
+Not a phase. v1 is the product SPEC §1 describes, and everything below is something v1
+deliberately does not do (SPEC §11).
+
+This file opened by saying "there is no P5", which stopped being true the day the owner asked
+for an identity — P5, P6 and P7 followed, and the note at the bottom records why. **P7 is the
+last of them.** The board in [README.md](README.md) is closed, so from here this list is the
+only place work lives.
 
 So this file is written differently from a plan. Each entry says what the thing is, what
 P1–P4 learned that changes how it should be built, and — the part that matters — **what
@@ -202,11 +207,63 @@ with a vendor whose script does not read the DOM.
 
 ---
 
+---
+
+## 10. A responsive layout
+
+**What.** SPEC §12 (6) settled v1 as desktop web, and every screen is built for it: the app
+shell is a six-link header at a fixed height, `/decks` and `/decks/:id` are tables, and the
+landing page's sections are two-column grids that stack but were not designed stacked.
+
+**What P1–P7 learned.** P7 is the phase that made this cost something. Until then the only
+people who saw the app had already decided to use it and were sitting at a desk; a landing
+page is a link somebody opens on a phone, from a message, once. It is also the first screen
+in the product that has to _say_ so — the footer states there is no mobile layout, because
+the alternative was a page that quietly looks broken on the device most likely to open it.
+
+The good news is that P5–P7 removed most of what usually makes this expensive. There is one
+token file, no hardcoded colours, no fixed pixel type scale, and `src/test/palette.test.ts`
+means a responsive pass cannot introduce a stray colour on the way through. The work is
+layout and the header, not a redesign.
+
+**Before starting.** Somebody opens the deployed link on a phone and cannot read it — which
+requires a deployed link, so this is downstream of the item below. If the honest answer stays
+"this is a portfolio project people open on a laptop", the footer sentence is a better
+product than a half-finished responsive pass.
+
+**Watch for.** Practice is the screen that matters and the one most likely to be treated as a
+narrow desktop layout. Four rating buttons in a row at 360 px is four tap targets under the
+minimum size, and mis-tapping `Again` on a mature card damages its schedule — which is the
+whole reason undo exists (SPEC §4.2).
+
+---
+
+## 11. The deployed origin
+
+**What.** Not a custom domain — any origin at all, including the free Vercel one. Three
+files are waiting on it: `public/sitemap.xml` and `public/robots.txt` each carry a
+`__SITE_ORIGIN__` token, and `index.html` still has a relative `og:image` and no `og:url`.
+
+**What P7 learned.** This is the one thing in the phase that could not be finished from
+inside the repository, and it is smaller than it looks: the sitemap protocol requires a
+fully-qualified `<loc>`, and several social scrapers will not resolve a relative image
+against the page, so both are one string away from correct. P7 left an obvious token rather
+than a plausible invented origin on purpose — a fake domain produces link previews that 404
+and a sitemap that indexes nothing, and does it silently.
+
+**Before starting.** The Vercel project is connected (the owner's list at the bottom of
+[P4-ship.md](P4-ship.md)). Then it is one commit: replace the token in two files, make
+`og:image` absolute, add `og:url`, and check the preview with any card validator.
+
+---
+
 ## What is explicitly _not_ on this list
 
 - **Per-deck analytics.** Settled at P3: `/progress` is account-wide, and the argument for
   it (a review log is one memory, not several) has not changed.
-- **A custom domain, CDN tuning, multi-region.** Vercel's default domain serves v1.
+- **A custom domain, CDN tuning, multi-region.** Vercel's default domain serves v1 — which
+  is exactly what item 11 above is waiting for. The distinction matters: a _custom_ domain is
+  still not on this list, an _origin of any kind_ is now a real dependency of three files.
 
 **Reversed 2026-08-13.** This list used to end with "**A redesign.** The product's look is
 settled." It was not settled; it was never decided. P1–P4 shipped stock shadcn `neutral` with

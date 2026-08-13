@@ -12,11 +12,13 @@ so no number on the page is an estimate of something the app did not record.
 <!-- Screenshot: add docs/screenshot.png (the dashboard or /progress on the demo account)
      and link it here. Not taken yet — the deploy below is still the owner's step. -->
 
-**Current state: P4.** Accounts, decks, cards of all three kinds (basic, cloze, MCQ),
-FSRS practice with undo, streaming generation with a review gate, `/progress`, error
-boundaries, a real 404, `/auth/callback`, and split route bundles. See
-[docs/SPEC.md](docs/SPEC.md) for the specification and [docs/plans/](docs/plans/) for the
-per-phase execution plans.
+**Current state: P7, and v1 is code complete.** Accounts, decks, cards of all three kinds
+(basic, cloze, MCQ), FSRS practice with undo, streaming generation with a review gate,
+`/progress`, error boundaries, a real 404, `/auth/callback`, split route bundles, a closed
+design system, and — since P7 — a public landing page at `/` that reaches no data layer and
+fires no requests. See [docs/SPEC.md](docs/SPEC.md) for the specification and
+[docs/plans/](docs/plans/) for the per-phase execution plans; the board there is closed, and
+what remains is in [docs/plans/POST-V1.md](docs/plans/POST-V1.md).
 
 Two steps are the owner's and are **not done**, and the app is not yet deployed because of
 them: the Edge Function has no `GROQ_API_KEY` and has never been deployed, and no Vercel
@@ -94,6 +96,11 @@ Finally, in the Supabase dashboard under **Authentication → URL Configuration*
 Without those, the link in a confirmation email points somewhere the app is not, and
 `/auth/callback` never receives anything. This is the most common way a working signup
 flow ships broken.
+
+The same domain finishes three files P7 left deliberately unfinished rather than guessing:
+replace `__SITE_ORIGIN__` in `public/sitemap.xml` and `public/robots.txt`, and make
+`og:image` absolute (plus add an `og:url`) in `index.html`. Until then a shared link renders
+without its preview card even though `public/og-image.png` is sitting right there.
 
 ### 2. Vercel
 

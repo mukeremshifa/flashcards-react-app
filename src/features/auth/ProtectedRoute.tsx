@@ -25,7 +25,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** The mirror image: keep a signed-in user off /login and /signup. */
+/**
+ * The mirror image: keep a signed-in user off /login, /signup — and, from P7,
+ * off the landing page. Somebody with a session who opens `/` typed the bare
+ * domain out of habit and wants the app, not a pitch for a product they already
+ * use, so /dashboard is where all three send them.
+ */
 export function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
 

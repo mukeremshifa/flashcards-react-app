@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One route, one entry (P7 task 4). Written by hand rather than generated: a
+  build step that emits a single static URL is a build step to maintain forever
+  for output that never changes.
+
+  __SITE_ORIGIN__ IS A PLACEHOLDER, NOT A URL. The sitemap protocol requires a
+  fully-qualified <loc> — a relative path is invalid — and this app has no
+  deployed domain yet. The same gap is why og:image in index.html is still
+  relative; both are the owner's one-line follow-up when a domain is connected.
+
+  To finish: replace the token here and in public/robots.txt with the real
+  origin (no trailing slash), e.g. https://synapsedeck.vercel.app, in the same
+  commit that connects the domain, and make the social tags absolute while you
+  are in there.
+
+  Left as an obvious token on purpose. A plausible-looking invented origin would
+  index nothing and say nothing about why; this one fails loudly the first time
+  anything reads it, which is the failure worth having.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>__SITE_ORIGIN__/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

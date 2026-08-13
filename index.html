@@ -21,9 +21,17 @@
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#070707" media="(prefers-color-scheme: dark)" />
 
-    <!-- Social. Paths are relative because the app has no domain yet; when one is
-         connected, make og:image and og:url absolute — several scrapers will not
-         resolve a relative image against the page. -->
+    <!-- Social. Paths are still relative because the app still has no domain:
+         P7 task 4 checked, and no Vercel project is connected (README, and the
+         owner's list at the bottom of docs/plans/P4-ship.md). This is recorded
+         rather than guessed — inventing an origin here would produce link
+         previews that 404 for everyone.
+
+         When a domain exists, three edits in one commit: make og:image absolute,
+         add an absolute og:url, and replace __SITE_ORIGIN__ in public/robots.txt
+         and public/sitemap.xml. Several scrapers will not resolve a relative
+         image against the page, so until then a shared link renders without its
+         card even though public/og-image.png is sitting right there. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="SynapseDeck" />
     <meta property="og:title" content="SynapseDeck" />

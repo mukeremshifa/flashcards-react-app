@@ -16,18 +16,33 @@ import { DecksPage } from '@/features/decks/DecksPage';
  * route rather than each child — one place to get right, and no route can be
  * added later that quietly skips it.
  *
+ * **`/` is public from P7.** It used to be a `<Navigate>` index route *inside*
+ * the guarded layout, which made the front door private: a stranger asking for
+ * the site got redirected to /dashboard and bounced straight on to /login. It is
+ * now a top-level route rendering the landing page, and the guard protects one
+ * fewer path. Nothing about RLS changes — `LandingPage` reaches no data layer at
+ * all, and a test asserts that — but the change is the one thing in P7 that
+ * altered what an anonymous request can reach, so it is worth naming here.
+ *
  * **What is eager and why.** The bundle that matters is the one a signed-out
  * visitor downloads to see a login form. So the auth pages stay eager, and so do
  * the dashboard and the deck list — they are the first screen after signing in,
  * and a spinner there costs more than the bytes save. Everything else is behind
  * `React.lazy`: the generation pipeline and its schemas, the card editor and its
- * dialogs, `ts-fsrs`, and Recharts. P4 task 4; measured in docs/plans/P4-ship.md.
+ * dialogs, `ts-fsrs`, Recharts — and, from P7, the landing page, so that a
+ * signed-in user's first load does not fetch marketing they are about to be
+ * redirected away from. P4 task 4; measured in docs/plans/P4-ship.md.
  *
  * A lazy route only pays off if nothing eager imports the same heavy module —
  * `DashboardPage` importing `streaks` from `src/lib/progress.ts` is why that
  * module stays in the main chunk. Check the build table after touching imports.
  */
 
+const LandingPage = lazy(() =>
+  import('@/features/marketing/LandingPage').then(module => ({
+    default: module.LandingPage,
+  })),
+);
 const DeckDetailPage = lazy(() =>
   import('@/features/decks/DeckDetailPage').then(module => ({
     default: module.DeckDetailPage,
@@ -82,6 +97,30 @@ function Lazy({ children }: { children: ReactNode }) {
 export function AppRoutes() {
   return (
     <Routes>
+      {/*
+        The front door. Under `PublicOnlyRoute`, so a signed-in visitor to `/`
+        is sent to /dashboard rather than shown a pitch for a product they
+        already use — someone who typed the bare domain out of habit wants the
+        app, and a returning user who has to click past marketing to reach their
+        due queue has been charged for arriving.
+
+        Its own Suspense, not `Lazy`: that fallback is a page-shaped skeleton
+        sized for the inside of AppLayout, and floating it on an empty page
+        would draw three grey bars where a header is about to be. A full-height
+        blank holds the scroll position and shows nothing that turns out to be
+        a lie.
+      */}
+      <Route
+        path="/"
+        element={
+          <PublicOnlyRoute>
+            <Suspense fallback={<div className="min-h-dvh" />}>
+              <LandingPage />
+            </Suspense>
+          </PublicOnlyRoute>
+        }
+      />
+
       <Route
         element={
           <ProtectedRoute>
@@ -89,8 +128,6 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate replace to="/dashboard" />} />
-
         <Route path="dashboard" element={<DashboardPage />} />
 
         <Route path="decks" element={<DecksPage />} />

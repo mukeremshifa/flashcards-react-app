@@ -1,6 +1,6 @@
 # SynapseDeck — Product & Technical Specification
 
-**Status:** v1 · **Owner:** Mukerem Shifa · **Spec'd** 2026-08-11 · **Last revised** 2026-08-12
+**Status:** v1 · **Owner:** Mukerem Shifa · **Spec'd** 2026-08-11 · **Last revised** 2026-08-13
 
 Phase progress and per-phase execution plans live in [plans/](plans/).
 
@@ -630,7 +630,7 @@ Controls, all enforced in the Edge Function, never client-side:
 
 ```
 /login  /signup  /auth/callback
-/                       → redirect to /dashboard
+/                       landing page — public, no session, no request (P7)
 /dashboard              due today, streak, quick-practice, recent decks
 /decks                  deck list
 /decks/:id              card table, inline edit, manual add
@@ -643,6 +643,11 @@ Controls, all enforced in the Edge Function, never client-side:
 /account
 *                       404
 ```
+
+`/` is the only public route with anything on it. It sits under `PublicOnlyRoute`, not
+outside the guards altogether: a visitor **with** a session goes to `/dashboard`. Everything
+from `/dashboard` down is inside `ProtectedRoute`, which wraps the layout rather than each
+child, so a route added later cannot quietly skip it.
 
 ### 8.3 State ownership
 
@@ -751,18 +756,18 @@ concrete payoff of the TypeScript decision.
 
 ## 11. Phasing
 
-| Phase                        | Deliverable                                                                                                                                                        | Done when                                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                                     | ✅ build + typecheck + 38 tests green; RLS isolation test passes                                             |
-| **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                                | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501`                         |
-| **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                                 | ✅ 157 tests green; simulated week schedules correctly; undo restores exactly                                |
-| **P2 — Generation** ✅ done  | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                                | ✅ 251 tests green; pipeline built and typechecked under Deno — see docs/plans/P2-generation.md              |
-| **P3 — Progress** ✅ done    | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                                     | ✅ 299 tests green; SQL day buckets proven equal to `studyDayKey` across DST — see docs/plans/P3-progress.md |
-| **P4 — Ship** ✅ done        | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                                        | ✅ 305 tests green; the deploy itself is the owner's — see docs/plans/P4-ship.md                             |
-| **P5 — Identity** ✅ done    | Name; token system (chroma-0 neutrals + `#D0F861`); self-hosted type; mark; generated favicon/PWA/social assets; grade ramp                                        | ✅ 324 tests green; `npm run brand:assets` is deterministic — see docs/plans/P5-identity.md                  |
-| **P6 — Surface** ✅ done     | Per-screen pass: shell with an account menu and a three-state theme control, serif card fronts, generate readouts, progress hierarchy, deck density, system states | ✅ 346 tests green; the palette is closed by test — see docs/plans/P6-surface.md                             |
-| **P7 — Landing**             | `/` becomes a public marketing route; SEO and social metadata; bundle discipline for a first visit                                                                 | A stranger who has never heard of it understands the product before signing up                               |
-| **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes             | —                                                                                                            |
+| Phase                        | Deliverable                                                                                                                                                        | Done when                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| **P0 — Reset** ✅ done       | TS + Tailwind v4 + shadcn scaffold; deletions done; migrations for §5 + RLS, verified against in-process Postgres; route shell                                     | ✅ build + typecheck + 38 tests green; RLS isolation test passes                                                       |
+| **P0b — Cloud link** ✅ done | Project linked (`cnlnsaamiujselyuowzx`, eu-west-1, PG 17.6); migrations pushed; types generated; modern publishable/secret key mode                                | ✅ RLS verified live: anonymous reads return `[]`, anonymous insert rejected `42501`                                   |
+| **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                                 | ✅ 157 tests green; simulated week schedules correctly; undo restores exactly                                          |
+| **P2 — Generation** ✅ done  | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                                | ✅ 251 tests green; pipeline built and typechecked under Deno — see docs/plans/P2-generation.md                        |
+| **P3 — Progress** ✅ done    | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                                     | ✅ 299 tests green; SQL day buckets proven equal to `studyDayKey` across DST — see docs/plans/P3-progress.md           |
+| **P4 — Ship** ✅ done        | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                                        | ✅ 305 tests green; the deploy itself is the owner's — see docs/plans/P4-ship.md                                       |
+| **P5 — Identity** ✅ done    | Name; token system (chroma-0 neutrals + `#D0F861`); self-hosted type; mark; generated favicon/PWA/social assets; grade ramp                                        | ✅ 324 tests green; `npm run brand:assets` is deterministic — see docs/plans/P5-identity.md                            |
+| **P6 — Surface** ✅ done     | Per-screen pass: shell with an account menu and a three-state theme control, serif card fronts, generate readouts, progress hierarchy, deck density, system states | ✅ 346 tests green; the palette is closed by test — see docs/plans/P6-surface.md                                       |
+| **P7 — Landing** ✅ done     | `/` becomes a public marketing route; the product shown in markup rather than screenshots; robots and sitemap; the data-layer boundary made testable               | ✅ 355 tests green; `/` renders with no session and fires zero requests, proven by test — see docs/plans/P7-landing.md |
+| **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes             | —                                                                                                                      |
 
 **P1 before P2 is deliberate.** The LLM is the exciting part; the scheduler is the part that
 must be right. Building generation on top of an unproven scheduler means debugging both at
@@ -794,6 +799,57 @@ reasoning behind each is recoverable later.
   Groq's rate-limit page on 2026-08-12. Re-read them before changing `maxInputChars` or the
   burst limiter; they move, which is why the arithmetic that depends on them is written out
   in `src/lib/quota.ts` rather than left as bare constants.
+
+### Closed at P7 (2026-08-13)
+
+- **A signed-in visitor to `/` is sent to `/dashboard`.** `/` is public but still guarded,
+  by `PublicOnlyRoute` — the same guard that keeps a signed-in user off `/login`. Somebody
+  with a session who opens the bare domain typed it out of habit and wants their due queue;
+  making them read a pitch for a product they already use, and click past it, charges them
+  for arriving. The alternative — leaving `/` unguarded so everyone sees the marketing page
+  — would also mean the landing page needs a "go to the app" state, which is a second
+  signed-in surface to keep in step with the first.
+- **The auth pages stayed eager, for a new reason.** P4 made them eager because they were
+  the first screen a signed-out visitor saw. After P7 they are not; `/` is. Measured rather
+  than assumed: splitting them moves 4.8 kB raw / 1.6 kB gzip out of a 788 kB eager chunk,
+  because `react-hook-form`, Zod and the Supabase client all stay eager for other reasons.
+  That buys a signed-in user 1.6 kB once, and costs a stranger a chunk fetch on the single
+  most important click in the product — the sign-up button they just decided to press. The
+  landing page itself **is** lazy, and there the same arithmetic points the other way: it is
+  11.9 kB that a signed-in user would never render, and referencing it lazily grew the eager
+  chunk by 0.3 kB.
+- **A public page may not reach the authenticated data layer.** Not a size rule — a
+  behavioural one, and the thing that replaced the bundle-size target nobody was enforcing.
+  One `import { useDecks } from '@/lib/queries'` pulls in Supabase and TanStack Query, and a
+  rendered query hook starts making requests for a visitor who has no session and has asked
+  for nothing. It is enforced twice: `LandingPage.test.tsx` walks the module graph
+  _transitively_ (the realistic breakage is not importing `queries.ts`, it is importing a
+  component that does), and `landing-requests.test.tsx` renders the real providers and the
+  real route table with `fetch` and `WebSocket` replaced by spies that fail if used.
+- **The product is shown in markup, never in screenshots.** `src/features/marketing/showcase/`
+  holds inert copies of the practice card, the grade ramp and the review gate rows, built from
+  the same tokens and type rules as the real screens — so they follow the theme, stay sharp at
+  any zoom, cost no image bytes, and cannot go stale the way a PNG of a dashboard does. They
+  **copy** the markup rather than importing the live components, which is the whole point: the
+  live ones reach the data layer. The cost is drift, and that is the right trade — a stale
+  drawing is cosmetic, a marketing page that 401s in the console is not.
+- **The `h1` is bound to the social card.** `public/og-image.png` was rasterised at P5 with
+  "Forgetting is the schedule." set in the serif. The page and the image every shared link
+  renders must not disagree, and nobody would find out until a link was posted somewhere, so
+  a test asserts the heading and the string in `scripts/build-brand-assets.mjs` still match.
+  Changing the headline means changing both and re-running `npm run brand:assets`.
+- **`robots.txt` is a blanket `Disallow` plus an exact-match `Allow: /$`.** P5's per-route
+  list had already drifted — `/account`, `/login` and `/signup` were never in it — which is
+  what enumerating routes in a file nobody edits alongside the route table gets you. The
+  blanket rule is also the more accurate one: `vercel.json` rewrites every path to the same
+  `index.html`, so a crawler following `/dashboard` gets a duplicate of the landing page at a
+  second address rather than a new document.
+- **No domain, so no absolute URLs — recorded rather than invented.** `og:image` is still
+  relative, there is still no `og:url`, and `public/sitemap.xml` and `public/robots.txt` carry
+  a `__SITE_ORIGIN__` token instead of an origin. No Vercel project is connected yet (the
+  owner's list at the bottom of `P4-ship.md`), and a plausible-looking fake origin would
+  produce link previews that 404 and a sitemap that indexes nothing, silently. The token fails
+  loudly instead. Replacing it in three files is one commit, when there is a domain.
 
 ### Closed at P6 (2026-08-13)
 

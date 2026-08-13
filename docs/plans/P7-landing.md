@@ -235,3 +235,105 @@ Into `docs/plans/README.md`: the board row, and the note about what is left afte
 
 **Git, per CLAUDE.md:** commit to `dev`. No merge, no push, no PR, nothing touching `main`.
 No migrations are involved, so `db:push` does not enter into this phase.
+
+---
+
+## Acceptance notes — executed 2026-08-13
+
+**Gate:** `npm run typecheck && npm run lint && npm test && npm run build` green.
+**355 tests across 31 files** (346/29 before), on `dev`. `npm run brand:assets` still leaves
+`public/` unchanged.
+
+### The three traps
+
+1. `routes.test.tsx` — `toHaveLength(6)` became `toHaveLength(7)`, and the comment above it
+   now reads "Six split routes at P4 task 4, seven since P7 made the landing page lazy… update
+   it, never delete it." The assertion is intact.
+2. `/` is out of `ProtectedRoute` and under `PublicOnlyRoute`. A signed-in visitor goes to
+   `/dashboard`; the reasoning is in SPEC §12 _Closed at P7_ and in the route table's comment.
+   No RLS change, no migration.
+3. The data-layer boundary holds, and is now checked twice — see _Tests_ below.
+
+### Task 4 — the domain, unresolved and recorded
+
+No Vercel project is connected, so **`og:image` is still relative and there is still no
+`og:url`**, per the escape hatch in task 4. Rather than leave that as a comment nobody reads:
+
+- `index.html`'s social comment now says P7 checked, why nothing changed, and names the three
+  edits that land together when a domain exists.
+- `public/sitemap.xml` is new — one entry, hand-written, `<loc>__SITE_ORIGIN__/</loc>`. The
+  protocol requires a fully-qualified `<loc>`, so an origin is unavoidable; an obvious token
+  fails loudly, whereas an invented origin would index nothing and say nothing about why.
+- `public/robots.txt` announces the sitemap with the same token.
+- POST-V1 item 11 carries the follow-up with its trigger.
+
+**`robots.txt` also changed shape.** Checking the `Allow` rule against the route table found
+P5's per-route list had already drifted — `/account`, `/login` and `/signup` were never in it.
+It is now `Allow: /$` plus a blanket `Disallow: /`, which is both self-maintaining and more
+accurate: `vercel.json` rewrites everything to one `index.html`, so a crawled `/dashboard` is a
+duplicate of `/` at a second address, not a new document.
+
+### Task 5 — what loads when, measured
+
+| Chunk                | Raw       | Gzip      |
+| -------------------- | --------- | --------- |
+| `index-*.js` (eager) | 788.44 kB | 232.70 kB |
+| `LandingPage-*.js`   | 11.87 kB  | 3.55 kB   |
+| `ForecastChart-*.js` | 369.25 kB | 108.46 kB |
+| `index-*.css`        | 55.30 kB  | 13.76 kB  |
+
+An observation, not a bar. The landing page is **lazy**: it is 11.9 kB a signed-in user never
+renders, and referencing it lazily grew the eager chunk by 0.31 kB (788.13 → 788.44).
+
+The auth pages **stay eager**, for a new reason rather than P4's. Measured by building both
+ways: splitting them moves 4.79 kB raw / 1.59 kB gzip out of 788 kB, because `react-hook-form`,
+Zod and the Supabase client all stay eager for other reasons. That is 1.6 kB saved once for a
+signed-in user, against a chunk fetch on the single most important click in the funnel — the
+sign-up button a stranger has just decided to press. Recorded in SPEC §12.
+
+### Tests
+
+Seven new, across three files:
+
+| Test                                                            | File                        |
+| --------------------------------------------------------------- | --------------------------- |
+| `/` renders the landing page with no session and no redirect    | `routes.test.tsx`           |
+| `/` sends a visitor with a session to the app                   | `routes.test.tsx`           |
+| every lazy import resolves, count 7                             | `routes.test.tsx`           |
+| sign-in links → `/login`, sign-up links → `/signup`             | `LandingPage.test.tsx`      |
+| the `h1` still matches the string in `build-brand-assets.mjs`   | `LandingPage.test.tsx`      |
+| the module graph reaches no data layer and no other feature     | `LandingPage.test.tsx`      |
+| `/` fires zero requests with the real client and real providers | `landing-requests.test.tsx` |
+
+Two are stronger than the plan asked for, deliberately:
+
+- **The import check is transitive.** A direct `import … from '@/lib/queries'` is not how this
+  will break; an innocuous import of a component that has one is. The test walks the graph and
+  also fails on `@supabase/supabase-js`, `@tanstack/react-query`, `ts-fsrs` and `recharts`
+  anywhere in it. Verified by inserting a violation into a _showcase_ file — two assertions
+  failed, naming both the file and the packages.
+- **"Zero network requests" is asserted, not eyeballed.** The plan said to check the network
+  panel. `landing-requests.test.tsx` renders `Providers` + `AppRoutes` with the real Supabase
+  client and `fetch`/`WebSocket` replaced by spies that reject, which covers the shell as well
+  as the page — `AuthProvider` still mounts above every route, so "does the page import
+  Supabase" was never the whole question. Verified non-vacuous by planting a stored session,
+  which makes it fail on the token refresh.
+
+### Copy, and the two claims that were checked
+
+Written as sentences first. The `h1` is the string already rasterised into `og-image.png`, and
+a test now keeps them together. Neither unavailable thing is promised: the footer says plainly
+that there is no mobile layout yet and that drafting cards from text needs a provider key on
+the deployment — both stated rather than left to be discovered.
+
+**The accent appears once**, on the hero's Create account button. The header's and the closing
+section's are `outline`; secondary links are ink with an underline. The grade ramp is the one
+exemption (a scale, not an emphasis), which is why the showcase rows are two _basic_ cards — a
+revealed cloze blank and a revealed MCQ answer are both accent fields, and either would have
+spent the budget twice inside an illustration.
+
+### Left for the owner
+
+Unchanged from P4 and still blocking nothing in this phase: `GROQ_API_KEY` / `GENERATION_MODEL`
+as function secrets, `npm run fn:deploy`, the demo seed, and connecting Vercel. The domain is
+now also what POST-V1 item 11 waits on. Nothing here was merged, pushed, or opened as a PR.
