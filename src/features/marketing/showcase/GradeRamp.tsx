@@ -32,16 +32,16 @@ const RAMP = [
 export function GradeRampShowcase() {
   return (
     <div aria-hidden className="pointer-events-none w-full select-none">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         {RAMP.map(({ key, label, interval, field }) => (
           <div
             key={label}
             className={cn(
-              'text-primary-foreground flex flex-col items-center gap-0.5 rounded-md px-2 py-2.5',
+              'text-primary-foreground flex flex-col items-center gap-0.5 rounded-md px-1 py-2.5 sm:px-2',
               field,
             )}
           >
-            <span className="flex items-center gap-1.5 text-sm font-semibold">
+            <span className="flex items-center gap-1 text-xs font-semibold sm:gap-1.5 sm:text-sm">
               <span className="font-mono text-xs opacity-60">{key}</span>
               {label}
             </span>

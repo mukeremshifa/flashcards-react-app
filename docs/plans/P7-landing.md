@@ -321,6 +321,12 @@ Two are stronger than the plan asked for, deliberately:
 
 ### Copy, and the two claims that were checked
 
+> **Superseded on 2026-08-14, in the two places marked below.** The owner revised the page
+> after the board closed: it is responsive now, so the mobile disclosure was false and the
+> footer that carried it was replaced; and the accent is deliberately spent twice. What is
+> below is the record of what P7 shipped and why — the current rules are SPEC §12,
+> _Changed after P7_. Do not restore either of these from this file.
+
 Written as sentences first. The `h1` is the string already rasterised into `og-image.png`, and
 a test now keeps them together. Neither unavailable thing is promised: the footer says plainly
 that there is no mobile layout yet and that drafting cards from text needs a provider key on

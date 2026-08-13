@@ -211,25 +211,33 @@ with a vendor whose script does not read the DOM.
 
 ## 10. A responsive layout
 
-**What.** SPEC §12 (6) settled v1 as desktop web, and every screen is built for it: the app
-shell is a six-link header at a fixed height, `/decks` and `/decks/:id` are tables, and the
-landing page's sections are two-column grids that stack but were not designed stacked.
+**What.** SPEC §12 (6) settled v1 as desktop web, and every screen behind the login is built
+for it: the app shell is a six-link header at a fixed height, `/decks` and `/decks/:id` are
+tables, and practice is built for a keyboard.
+
+**Narrowed after P7 (2026-08-14): `/` is done and is out of scope.** The landing page is now
+written mobile-first and designed down to 360 px — sections stack, the two-up grids only
+appear at `lg`, the header sheds its ghost "Sign in" below `sm`, and both CTA rows put the
+button above the sign-in prompt. It was pulled forward out of this item for one reason: it is
+the only screen whose whole job is to be opened from a link, and a link that looks broken has
+already failed before anything behind it matters. What is left here is the app.
 
 **What P1–P7 learned.** P7 is the phase that made this cost something. Until then the only
-people who saw the app had already decided to use it and were sitting at a desk; a landing
-page is a link somebody opens on a phone, from a message, once. It is also the first screen
-in the product that has to _say_ so — the footer states there is no mobile layout, because
-the alternative was a page that quietly looks broken on the device most likely to open it.
+people who saw the app had already decided to use it and were sitting at a desk. P7 also put
+a sentence in the landing footer saying there was no mobile layout; that sentence is gone,
+because it is no longer true of the page it was printed on — so this item no longer has a
+disclosure standing in for it, and the app either gets the pass or is honestly a desktop app.
 
 The good news is that P5–P7 removed most of what usually makes this expensive. There is one
 token file, no hardcoded colours, no fixed pixel type scale, and `src/test/palette.test.ts`
-means a responsive pass cannot introduce a stray colour on the way through. The work is
+means a responsive pass cannot introduce a stray colour on the way through. The landing page
+is also now a worked example of the intended mobile-first idiom in this codebase. The work is
 layout and the header, not a redesign.
 
-**Before starting.** Somebody opens the deployed link on a phone and cannot read it — which
-requires a deployed link, so this is downstream of the item below. If the honest answer stays
-"this is a portfolio project people open on a laptop", the footer sentence is a better
-product than a half-finished responsive pass.
+**Before starting.** Somebody opens the deployed link on a phone, gets past the landing page,
+and cannot use what is behind it — which requires a deployed link, so this is downstream of
+the item below. If the honest answer stays "this is a portfolio project people open on a
+laptop", say so on the repository README rather than half-finishing the pass.
 
 **Watch for.** Practice is the screen that matters and the one most likely to be treated as a
 narrow desktop layout. Four rating buttons in a row at 360 px is four tap targets under the

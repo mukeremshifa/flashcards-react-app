@@ -16,7 +16,9 @@ so no number on the page is an estimate of something the app did not record.
 (basic, cloze, MCQ), FSRS practice with undo, streaming generation with a review gate,
 `/progress`, error boundaries, a real 404, `/auth/callback`, split route bundles, a closed
 design system, and — since P7 — a public landing page at `/` that reaches no data layer and
-fires no requests. See [docs/SPEC.md](docs/SPEC.md) for the specification and
+fires no requests. That page had a revision pass on 2026-08-14 and is the one screen that
+works on a phone; everything behind the login is still desktop web (SPEC §12 (6), and
+POST-V1 item 10). See [docs/SPEC.md](docs/SPEC.md) for the specification and
 [docs/plans/](docs/plans/) for the per-phase execution plans; the board there is closed, and
 what remains is in [docs/plans/POST-V1.md](docs/plans/POST-V1.md).
 

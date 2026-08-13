@@ -1,19 +1,23 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-import { ThemeProvider } from '@/app/theme';
 import { LandingPage } from './LandingPage';
 
 /**
- * Two things about the front door, and the second one is the reason P7 was the
+ * Three things about the front door, and the third one is the reason P7 was the
  * risky phase.
  *
  * **What it links to.** The page has exactly one job — get a stranger to an
  * account — and a typo in one `to=` breaks it in a way no other test in this
- * repo would ever exercise.
+ * repo would ever exercise. The contact links are here for the same reason: a
+ * mistyped address in a public footer fails silently, forever.
+ *
+ * **What it says.** Two rules that are invisible to a typechecker: the headline
+ * is bound to the rasterised social card, and no em dash may appear in anything
+ * a visitor reads.
  *
  * **What it imports.** `/` is the only route a visitor with no session reaches,
  * and one `import { useDecks } from '@/lib/queries'` would pull in Supabase and
@@ -24,9 +28,11 @@ import { LandingPage } from './LandingPage';
  * the way it will actually be broken is not a direct import of `queries.ts` but
  * an innocuous-looking import of a component that has one.
  *
- * Note what this test file does not need to set up: no `QueryClientProvider`, no
- * `AuthProvider`, no Supabase mock. If a future edit makes any of those
- * necessary, the boundary has already gone.
+ * Note what this file no longer needs to set up. It had a `ThemeProvider` and a
+ * `matchMedia` stub while the header carried the theme control; with that gone,
+ * a router is the entire harness. No `QueryClientProvider`, no `AuthProvider`,
+ * no Supabase mock, and if a future edit makes any of those necessary, the
+ * boundary has already gone.
  */
 
 const SRC = join(process.cwd(), 'src');
@@ -97,33 +103,13 @@ function moduleGraph() {
   };
 }
 
-/** jsdom has no matchMedia; ThemeProvider reads it on first render. */
-function stubMatchMedia() {
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
-  );
-}
-
 function renderLanding() {
   return render(
-    <ThemeProvider>
-      <MemoryRouter>
-        <LandingPage />
-      </MemoryRouter>
-    </ThemeProvider>,
+    <MemoryRouter>
+      <LandingPage />
+    </MemoryRouter>,
   );
 }
-
-beforeEach(() => {
-  localStorage.clear();
-  stubMatchMedia();
-});
 
 describe('the landing page', () => {
   it('sends every sign-in link to /login and every sign-up link to /signup', () => {
@@ -154,6 +140,44 @@ describe('the landing page', () => {
       screen.getByRole('heading', { level: 1, name: 'Forgetting is the schedule.' }),
     ).toBeInTheDocument();
   });
+
+  it('reaches the author by address and by profile', () => {
+    renderLanding();
+
+    // Typed once here and once in the page, deliberately: an address is the one
+    // string on the page that nothing else in the app can check for me.
+    expect(screen.getByRole('link', { name: 'mukeemoha@gmail.com' })).toHaveAttribute(
+      'href',
+      'mailto:mukeemoha@gmail.com',
+    );
+
+    const profile = screen.getByRole('link', { name: 'github.com/mukeremshifa' });
+    expect(profile).toHaveAttribute('href', 'https://github.com/mukeremshifa');
+    // Another host: a tab of its own, and no window.opener handed to it.
+    expect(profile).toHaveAttribute('target', '_blank');
+    expect(profile).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
+  it('offers no theme control', () => {
+    renderLanding();
+
+    // The header held a three-state radio group until the theme choice moved to
+    // the account menu alone. There is no account menu on this page, and a
+    // settings widget is not what a stranger came here to find; the provider
+    // above the router still resolves `system` for a first-time visitor.
+    expect(screen.queryByRole('radiogroup', { name: /theme/i })).toBeNull();
+  });
+
+  it('has no em dash in any copy a visitor reads', () => {
+    renderLanding();
+
+    // U+2014 only. The en dash in "1–4" is a range and stays; this is about the
+    // dash used as punctuation, which every sentence here now does without.
+    const text = document.body.textContent ?? '';
+    const at = text.indexOf('—');
+    const context = at === -1 ? '' : text.slice(Math.max(0, at - 70), at + 70);
+    expect(at, `rewrite this without an em dash: …${context}…`).toBe(-1);
+  });
 });
 
 describe('the landing page module graph', () => {
@@ -161,10 +185,12 @@ describe('the landing page module graph', () => {
 
   it('reaches enough files to be checking anything', () => {
     // A resolver that quietly returns null for everything would make every
-    // assertion below pass by walking a graph of one.
+    // assertion below pass by walking a graph of one. `button.tsx` is the anchor
+    // because reaching it proves `@/` specifiers resolve out of this directory,
+    // which is how the data layer would arrive if it ever did.
     expect(files.length).toBeGreaterThan(6);
     expect(files).toContain('features/marketing/showcase/GradeRamp.tsx');
-    expect(files).toContain('app/ThemeChoice.tsx');
+    expect(files).toContain('components/ui/button.tsx');
   });
 
   it('never reaches the data layer', () => {

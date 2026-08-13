@@ -1,6 +1,6 @@
 # SynapseDeck — Product & Technical Specification
 
-**Status:** v1 · **Owner:** Mukerem Shifa · **Spec'd** 2026-08-11 · **Last revised** 2026-08-13
+**Status:** v1 · **Owner:** Mukerem Shifa · **Spec'd** 2026-08-11 · **Last revised** 2026-08-14
 
 Phase progress and per-phase execution plans live in [plans/](plans/).
 
@@ -787,7 +787,7 @@ reasoning behind each is recoverable later.
 | 3   | Deployment target          | Vercel for the SPA, Supabase cloud for the backend                                                 |
 | 4   | Timeline                   | None. Phases are ordered, not dated                                                                |
 | 5   | Cloze multi-group          | One deletion group per card; multi-group notes split at ingest (`splitClozeGroups`)                |
-| 6   | Offline / PWA              | Desktop web only for v1                                                                            |
+| 6   | Offline / PWA              | Desktop web only for v1, except `/` — see _Changed after P7_                                       |
 | 7   | MCQ grading                | Auto-grade into FSRS (correct → Good, wrong → Again), with a manual override                       |
 
 ### Closed at P2 (2026-08-12)
@@ -799,6 +799,55 @@ reasoning behind each is recoverable later.
   Groq's rate-limit page on 2026-08-12. Re-read them before changing `maxInputChars` or the
   burst limiter; they move, which is why the arithmetic that depends on them is written out
   in `src/lib/quota.ts` rather than left as bare constants.
+
+### Changed after P7 (2026-08-14)
+
+The board was closed and the landing page shipped; this is the owner's pass over it. Six
+decisions, four of which amend something P6 or P7 had settled — recorded here rather than
+edited into those sections, so the reasoning that was replaced is still readable.
+
+- **`/` is responsive. Everything behind the login is still not.** Row 6 above stands for
+  the app: the shell is a six-link header at a fixed height, `/decks` is a table, and
+  practice is built for a keyboard. The landing page is the exception because it is the one
+  screen whose whole job is to be opened from a link, and links get opened on phones. It is
+  written mobile-first and designed down to 360 px: sections stack, the two-up grids only
+  appear at `lg`, the header sheds the ghost "Sign in" below `sm` (the hero repeats it two
+  lines down), and both CTA rows put the button above the sign-in prompt rather than beside
+  it. This does not shorten POST-V1 item 10; it removes the landing page from its scope and
+  removes the footer sentence that item was leaning on.
+- **The landing page spends the accent twice, and this is the one screen allowed to.** P6
+  capped it at once per screen (_Closed at P6_), and the cap is about emphasis: one obvious
+  next thing to do. Both spends here are the same button, "Create account" in the header and
+  in the hero, so a visitor who has scrolled past the hero still has the accent above them
+  rather than a page with no visible way forward. The closing CTA stays outline, because a
+  third would make none of the three primary. Nothing else on the page is accent: `--primary`
+  is oklch(0.922 …), roughly 1.2:1 against paper, and headlines are ink.
+- **No theme control on `/`.** P6 made the control a three-state radio group and put it in
+  the account menu; the landing page has no account menu, which is why P7 put the group in
+  the header. A settings widget shown to somebody who has not decided to use the product is
+  the wrong thing in the wrong place, and it was competing with the sign-up button for the
+  top-right corner. Removing the control is all that changed: `ThemeProvider` still sits
+  above the router, so a first-time visitor with nothing in `localStorage` gets `system`,
+  and somebody who chose light or dark inside the app still sees their choice here.
+- **The review-log strapline is out of both footers.** "Every number here is counted from
+  your own review log — nothing is estimated." was a marketing line printed on every screen
+  of a signed-in app, and `/progress` already says it in the one place it means something,
+  about the numbers actually on the page. Both footers now carry a credit instead. The
+  landing page keeps the section that makes the claim properly, with the `reviews` columns
+  listed beside it — a claim with its evidence is not the same object as a strapline.
+- **The landing footer is a real footer.** Wordmark and one line of what the product is,
+  a Product column (create account, sign in), a Contact column (mukeemoha@gmail.com, and
+  github.com/mukeremshifa), then a credit and the year. It replaces P7's fine print, which
+  stated that there was no mobile layout — now false — and that drafting cards needs a
+  provider key on the deployment, which is still true and is now unsaid. That is a real
+  loss of honesty and it is deliberate: the caveat belongs on `/create/text`, where the
+  feature is, and that screen already answers "not configured on this project yet".
+- **No em dash in anything a visitor reads on `/`.** A house-style rule, not a typographic
+  one: colons, full stops and commas carry the same joins, and the dash was doing the work
+  of all three across the page. `LandingPage.test.tsx` asserts the rendered text is free of
+  U+2014; the en dash in "1–4" is a range and stays, and the rule is about copy, so the
+  comments and this document are not in scope. Nothing in `public/` was regenerated — the
+  rasterised text is "Forgetting is the schedule." and never had one.
 
 ### Closed at P7 (2026-08-13)
 

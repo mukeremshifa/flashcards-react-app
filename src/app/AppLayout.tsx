@@ -84,15 +84,15 @@ export function AppLayout() {
         </RouteErrorBoundary>
       </main>
 
-      {/* P5 left this pointing at `docs/SPEC.md`, which is a reference to a file
-          in a repository nobody reading the footer can open. The claim was the
-          part worth keeping. */}
+      {/* P5 pointed this at `docs/SPEC.md`, a file nobody reading the footer can
+          open, and P7 replaced it with a claim about the review log. The claim
+          was a marketing line on every screen of a signed-in app, and `/progress`
+          already says the same thing where it means something. A credit is what
+          is left, and it is the only thing here that is about this footer. */}
       <footer className="border-t">
         <div className="text-muted-foreground mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-xs">
           <span className="text-foreground font-serif text-sm">SynapseDeck</span>
-          <span>
-            Every number here is counted from your own review log — nothing is estimated.
-          </span>
+          <span>Built by mukeremshifa</span>
         </div>
       </footer>
     </div>

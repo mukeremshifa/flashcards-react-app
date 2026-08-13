@@ -31,7 +31,7 @@ const DRAFTS = [
     index: 1,
     kind: 'Basic',
     front: 'What does FSRS mean by the stability of a card?',
-    back: 'The number of days over which recall probability falls to 90% — the higher it is, the longer the card can wait.',
+    back: 'The number of days over which recall probability falls to 90%. The higher it is, the longer the card can wait.',
   },
   {
     index: 2,
@@ -59,8 +59,8 @@ export function StagingRowsShowcase() {
               <span>{draft.kind}</span>
             </div>
 
-            <p className="font-serif text-xl leading-snug">{draft.front}</p>
-            <p className="text-lg leading-relaxed">{draft.back}</p>
+            <p className="font-serif text-lg leading-snug sm:text-xl">{draft.front}</p>
+            <p className="leading-relaxed sm:text-lg">{draft.back}</p>
 
             <div className="flex flex-wrap items-center gap-2 pt-1 text-sm font-medium">
               <span

@@ -44,11 +44,11 @@ export function ReviewCardShowcase() {
         <div className="bg-foreground h-full w-[22%] rounded-full" />
       </div>
 
-      <Card className="py-8">
-        <CardContent className="space-y-6 px-8">
+      <Card className="py-6 sm:py-8">
+        <CardContent className="space-y-6 px-5 sm:px-8">
           {/* A card question: one of the three places the serif is allowed
               (SPEC §12, Closed at P6). */}
-          <p className="font-serif text-2xl leading-snug">
+          <p className="font-serif text-xl leading-snug sm:text-2xl">
             Why does a spaced-repetition scheduler need to know when you last saw a card,
             and not only how many times you have seen it?
           </p>

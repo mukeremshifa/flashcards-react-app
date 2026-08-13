@@ -58,8 +58,17 @@ owner's list below — and the owner's list is not work a session can plan its w
 
 Two items moved into POST-V1 with P7 rather than being left implied by their absence: the
 **custom domain**, which three files now wait on with a `__SITE_ORIGIN__` token, and a
-**mobile layout**, which the landing page is the first screen to state out loud that the app
-does not have.
+**mobile layout**, which the landing page was the first screen to state out loud that the app
+did not have.
+
+**Post-P7 revision, 2026-08-14.** The owner made a pass over the landing page after the board
+closed: it is now responsive down to 360 px, the header spends a second accent on "Create
+account" and no longer carries the theme control, the review-log strapline is gone from both
+footers, `/` has a real footer with contact details, and no em dash appears in its copy. Six
+decisions, all recorded in SPEC §12 under _Changed after P7_, and POST-V1 item 10 is narrowed
+to the app because the landing page is out of its scope now. This is not a phase and did not
+get a plan file — a change to one screen that a session can hold in its head does not need
+one, and pretending otherwise would reopen a board that is legitimately closed.
 
 The split that still matters day to day: schema and RLS changes are testable locally
 against PGlite (`npm test`), but anything touching Supabase Auth needs the real project,

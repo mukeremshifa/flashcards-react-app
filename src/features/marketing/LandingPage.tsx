@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-import { ThemeChoice } from '@/app/ThemeChoice';
 import { LogoLockup } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { GradeRampShowcase } from './showcase/GradeRamp';
@@ -9,9 +8,9 @@ import { ReviewCardShowcase } from './showcase/ReviewCard';
 import { StagingRowsShowcase } from './showcase/StagingRows';
 
 /**
- * The front door (P7).
+ * The front door (P7, revised after it).
  *
- * Until now `/` redirected into `/dashboard`, which bounced a signed-out visitor
+ * Until P7 `/` redirected into `/dashboard`, which bounced a signed-out visitor
  * to `/login` — so the entire pitch was a login card, and a stranger could not
  * find out what SynapseDeck is without first creating an account.
  *
@@ -21,24 +20,39 @@ import { StagingRowsShowcase } from './showcase/StagingRows';
  * behalf of somebody who has no session and has not asked for anything — a
  * marketing page that opens a websocket and 401s in the console is a bad first
  * impression and a slow one. The imports allowed here are `@/components/ui/*`,
- * `@/components/Logo`, `@/app/ThemeChoice`, `react-router-dom`, `lucide-react`
- * and this directory. `LandingPage.test.tsx` asserts that, because it is the
- * kind of rule that erodes through one convenient import at a time.
+ * `@/components/Logo`, `react-router-dom`, `lucide-react` and this directory.
+ * `LandingPage.test.tsx` asserts that, because it is the kind of rule that
+ * erodes through one convenient import at a time.
  *
  * **Its own header and footer, not `AppLayout`.** That shell is the signed-in
- * one: it navigates five authenticated routes and holds the account menu. What
- * it does share is the footer's sentence, because the claim is the same claim.
- * `ThemeChoice` is reused rather than rebuilt — this is the only screen in the
- * app with no account menu to hide the control inside.
+ * one: it navigates five authenticated routes and holds the account menu.
  *
- * **The accent is spent once, on "Create account" in the hero**, and nowhere
- * else on the page. `--primary` is oklch(0.922 …) — roughly 1.2:1 against paper
- * — so an accent headline is invisible in the light theme and, in the dark one,
- * spends the whole budget on decoration. Headlines are ink on paper. The grade
- * ramp is exempt because it is a scale rather than an emphasis, and so is the
- * node in the mark (SPEC §12, _Closed at P6_). `src/test/palette.test.ts` will
- * not catch a violation of this — it checks that no literal colour is used, not
- * that a token is used correctly.
+ * **This is the one responsive screen in the app.** Everything behind the login
+ * is still desktop web (SPEC §12 (6)); a landing page is not, because it is a
+ * link somebody opens on a phone, from a message, once. Every layout here is
+ * written mobile-first and designed down to 360 px: sections stack, the two-up
+ * grids only exist from `lg`, and the header sheds the ghost "Sign in" below
+ * `sm` because the hero repeats it two lines further down.
+ *
+ * **No theme control.** Every other screen puts one in the account menu; this
+ * page has no account menu, and a three-state radio group in a marketing header
+ * is a settings widget shown to somebody who has not decided to use the product
+ * yet. A first-time visitor has nothing in `localStorage`, so `ThemeProvider`
+ * resolves `system` and the page follows the machine. Somebody who already set
+ * light or dark inside the app still gets their choice: the provider is above
+ * the router, and this page simply does not offer a way to change it.
+ *
+ * **The accent is spent twice here, and that is deliberate.** SPEC §12 caps it
+ * at once per screen; the exception is recorded there under _Changed after P7_.
+ * Both spends are the same button — "Create account" in the header and in the
+ * hero — so the rule's actual purpose (one obvious next thing to do) survives:
+ * a visitor who scrolls past the hero still has the accent in the sticky-less
+ * header above them. Everything else stays ink: `--primary` is oklch(0.922 …),
+ * roughly 1.2:1 against paper, so an accent headline is invisible in the light
+ * theme. The grade ramp is exempt because it is a scale rather than an emphasis,
+ * and so is the node in the mark. `src/test/palette.test.ts` will not catch a
+ * violation of this — it checks that no literal colour is used, not that a token
+ * is used correctly.
  *
  * **The `h1` is not free text.** `public/og-image.png` — the image every shared
  * link renders — is already rasterised with "Forgetting is the schedule." set in
@@ -47,11 +61,9 @@ import { StagingRowsShowcase } from './showcase/StagingRows';
  * means changing the string in `scripts/build-brand-assets.mjs` and re-running
  * `npm run brand:assets` in the same commit.
  *
- * Two things the copy deliberately does not promise, both checked against
- * reality first: that pasting text will draft cards on *this* deployment
- * (`GROQ_API_KEY` is still unset — see the bottom of `docs/plans/P4-ship.md`),
- * and that any of it works on a phone (SPEC §12 (6): desktop web for v1). Both
- * are said plainly in the footer rather than left for someone to discover.
+ * **No em dash in anything a visitor reads.** Colons, full stops and commas
+ * carry the same joins, and a test asserts the rendered text is free of them.
+ * The rule is about copy, not about this comment.
  */
 
 /** What one review appends to the log. Field names as they exist in `reviews`. */
@@ -81,6 +93,47 @@ function TextLink({ to, children }: { to: string; children: ReactNode }) {
 }
 
 /**
+ * A footer link. Internal destinations go through the router; an address and a
+ * profile on another host cannot, so those are plain anchors. Muted until it is
+ * hovered, because a footer of underlined links reads as a warning label.
+ */
+function FooterLink({ href, children }: { href: string; children: ReactNode }) {
+  const className =
+    'text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm underline-offset-4 transition-colors outline-none hover:underline focus-visible:ring-2';
+
+  if (href.startsWith('/')) {
+    return (
+      <Link to={href} className={className}>
+        {children}
+      </Link>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      className={className}
+      // mailto: hands off to a mail client; a tab target for it is a blank tab.
+      {...(href.startsWith('mailto:')
+        ? {}
+        : { target: '_blank', rel: 'noreferrer noopener' })}
+    >
+      {children}
+    </a>
+  );
+}
+
+/** One labelled column of footer links. */
+function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="text-foreground text-xs tracking-wide uppercase">{title}</p>
+      <ul className="mt-3 space-y-2 text-sm">{children}</ul>
+    </div>
+  );
+}
+
+/**
  * A showcase and the sentence that carries its meaning. The drawing itself is
  * `aria-hidden` — it is an illustration of an interface, not an interface — so
  * this caption is the only version of it assistive technology gets.
@@ -100,7 +153,7 @@ export function LandingPage() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-b">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4 sm:h-16 sm:gap-3 sm:px-6">
           <Link
             to="/"
             aria-label="SynapseDeck home"
@@ -109,33 +162,35 @@ export function LandingPage() {
             <LogoLockup />
           </Link>
 
-          <ThemeChoice className="mr-2" />
-          <Button asChild variant="ghost" size="sm">
+          {/* Below sm this is what gives the accent button room; the hero says
+              "Already have one? Sign in" two lines further down anyway. */}
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
             <Link to="/login">Sign in</Link>
           </Button>
-          <Button asChild variant="outline" size="sm">
+          <Button asChild size="sm">
             <Link to="/signup">Create account</Link>
           </Button>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6">
         {/* ---------------------------------------------------------- hero --- */}
-        <section className="grid items-center gap-12 py-20 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
+        <section className="grid items-center gap-10 py-14 sm:gap-12 sm:py-16 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:py-20">
           <div className="max-w-xl">
-            <h1 className="font-serif text-5xl leading-[1.05] tracking-tight text-balance lg:text-6xl">
+            <h1 className="font-serif text-4xl leading-[1.05] tracking-tight text-balance sm:text-5xl lg:text-6xl">
               Forgetting is the schedule.
             </h1>
 
-            <p className="text-muted-foreground mt-6 text-lg leading-relaxed">
+            <p className="text-muted-foreground mt-5 leading-relaxed sm:mt-6 sm:text-lg">
               Paste what you are studying. SynapseDeck drafts flashcards from it, you
               decide which ones are worth keeping, and a real spaced-repetition scheduler
               decides when you see each one again.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              {/* The one accent on this page. */}
-              <Button asChild size="lg">
+            {/* Stacked below sm, and six units apart above it: the button and the
+                sign-in prompt used to sit close enough to read as one control. */}
+            <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
+              <Button asChild size="lg" className="w-full sm:w-auto">
                 <Link to="/signup">Create account</Link>
               </Button>
               <span className="text-muted-foreground text-sm">
@@ -143,7 +198,7 @@ export function LandingPage() {
               </span>
             </div>
 
-            <p className="text-muted-foreground mt-4 text-sm">
+            <p className="text-muted-foreground mt-6 text-sm">
               Free, and your decks are private to you.
             </p>
           </div>
@@ -154,20 +209,20 @@ export function LandingPage() {
         </section>
 
         {/* ------------------------------------------- what it does better --- */}
-        <section className="border-t py-20">
-          <h2 className="text-3xl font-semibold tracking-tight">
+        <section className="border-t py-14 sm:py-20">
+          <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
             Two things a stack of index cards cannot do
           </h2>
 
-          <div className="mt-14 grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+          <div className="mt-10 grid items-center gap-8 sm:mt-14 lg:grid-cols-2 lg:gap-16">
             <div className="max-w-xl">
               <h3 className="text-xl font-semibold">The schedule</h3>
               <p className="text-muted-foreground mt-4 leading-relaxed">
                 Every card carries its own stability and difficulty. Rating one is what
-                sets the next interval — minutes for something you have just lost, months
-                for something solid — so the queue you practise is what is due today
-                rather than the deck from the top. The scheduler is FSRS, and the interval
-                printed under each rating is the one that card actually gets.
+                sets the next interval: minutes for something you have just lost, months
+                for something solid. The queue you practise is what is due today, not the
+                deck from the top. The scheduler is FSRS, and the interval printed under
+                each rating is the one that card actually gets.
               </p>
             </div>
 
@@ -176,7 +231,7 @@ export function LandingPage() {
             </Figure>
           </div>
 
-          <div className="mt-20 grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+          <div className="mt-14 grid items-center gap-8 sm:mt-20 lg:grid-cols-2 lg:gap-16">
             <Figure caption="The review gate, mid-generation. Cards stream in as they are written; none of them is scheduled until you say so.">
               <StagingRowsShowcase />
             </Figure>
@@ -190,22 +245,22 @@ export function LandingPage() {
                 next week with cards you would never have written yourself.
               </p>
               <p className="text-muted-foreground mt-4 leading-relaxed">
-                Three kinds of card come out of it — plain question and answer, cloze
-                deletions, and multiple choice — and every one of them can be written by
-                hand as well.
+                Three kinds of card come out of it: plain question and answer, cloze
+                deletions, and multiple choice. Every one of them can be written by hand
+                as well.
               </p>
             </div>
           </div>
         </section>
 
         {/* -------------------------------------------------- the numbers --- */}
-        <section className="border-t py-20">
-          <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+        <section className="border-t py-14 sm:py-20">
+          <div className="grid gap-8 lg:grid-cols-2 lg:gap-16">
             <div className="max-w-xl">
-              <h2 className="text-3xl font-semibold tracking-tight">
+              <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
                 Every number is counted, not estimated
               </h2>
-              <p className="text-muted-foreground mt-6 leading-relaxed">
+              <p className="text-muted-foreground mt-5 leading-relaxed sm:mt-6">
                 Each rating appends a row to a review log: the grade, the scheduler state
                 before it, and the state after. Nothing is overwritten, and an undo leaves
                 a tombstone rather than removing the row.
@@ -224,7 +279,7 @@ export function LandingPage() {
               <dl className="mt-4 divide-y rounded-lg border">
                 {REVIEW_LOG_FIELDS.map(({ field, meaning }) => (
                   <div key={field} className="px-4 py-3">
-                    <dt className="font-mono text-sm">{field}</dt>
+                    <dt className="font-mono text-xs break-words sm:text-sm">{field}</dt>
                     <dd className="text-muted-foreground mt-1 text-sm leading-relaxed">
                       {meaning}
                     </dd>
@@ -236,18 +291,21 @@ export function LandingPage() {
         </section>
 
         {/* ------------------------------------------------------- closing --- */}
-        <section className="border-t py-20">
+        <section className="border-t py-14 sm:py-20">
           <div className="max-w-2xl">
-            <h2 className="text-3xl font-semibold tracking-tight">Start with one deck</h2>
-            <p className="text-muted-foreground mt-6 leading-relaxed">
+            <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+              Start with one deck
+            </h2>
+            <p className="text-muted-foreground mt-5 leading-relaxed sm:mt-6">
               Create an account and your first deck is a couple of minutes away. Decks and
               cards are private to the account that made them, and that is enforced in the
               database by row-level security rather than by a check in the app that a
               future bug could skip.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              {/* Outline, not the accent — the hero already spent it. */}
-              <Button asChild variant="outline" size="lg">
+            <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
+              {/* Outline: the two accents on this page are both the same button,
+                  and a third would make none of them the next thing to do. */}
+              <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
                 <Link to="/signup">Create account</Link>
               </Button>
               <span className="text-muted-foreground text-sm">
@@ -259,21 +317,48 @@ export function LandingPage() {
       </main>
 
       <footer className="border-t">
-        <div className="text-muted-foreground mx-auto w-full max-w-6xl space-y-3 px-4 py-8 text-xs">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-foreground font-serif text-sm">SynapseDeck</span>
-            <span>
-              Every number here is counted from your own review log — nothing is
-              estimated.
-            </span>
+        <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+          <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
+            <div>
+              <LogoLockup />
+              <p className="text-muted-foreground mt-3 max-w-xs text-sm leading-relaxed">
+                Spaced repetition with a real scheduler, and a review log you can read
+                back.
+              </p>
+            </div>
+
+            {/* Stacked below sm: side by side, "github.com/mukeremshifa" is
+                wider than half of a 360 px viewport and would wrap mid-link. */}
+            <div className="grid gap-8 sm:grid-cols-2 sm:gap-16">
+              <FooterColumn title="Product">
+                <li>
+                  <FooterLink href="/signup">Create account</FooterLink>
+                </li>
+                <li>
+                  <FooterLink href="/login">Sign in</FooterLink>
+                </li>
+              </FooterColumn>
+
+              <FooterColumn title="Contact">
+                <li>
+                  <FooterLink href="mailto:mukeemoha@gmail.com">
+                    mukeemoha@gmail.com
+                  </FooterLink>
+                </li>
+                <li>
+                  <FooterLink href="https://github.com/mukeremshifa">
+                    github.com/mukeremshifa
+                  </FooterLink>
+                </li>
+              </FooterColumn>
+            </div>
           </div>
-          {/* The two claims P7 said to check before making them. Neither is true
-              yet, so neither is promised above. */}
-          <p className="max-w-3xl leading-relaxed">
-            Desktop web for now — there is no mobile layout yet. Drafting cards from text
-            needs a model provider key configured on the deployment; writing them by hand
-            never does.
-          </p>
+
+          <div className="text-muted-foreground mt-10 flex flex-col gap-2 border-t pt-6 text-xs sm:flex-row sm:items-center sm:justify-between">
+            <span>Built by mukeremshifa</span>
+            {/* Computed, so the footer cannot be the thing that dates the site. */}
+            <span>© {new Date().getFullYear()} SynapseDeck</span>
+          </div>
         </div>
       </footer>
     </div>
