@@ -246,22 +246,29 @@ whole reason undo exists (SPEC §4.2).
 
 ---
 
-## 11. The deployed origin
+## 11. The deployed origin — ✅ closed 2026-08-14
 
-**What.** Not a custom domain — any origin at all, including the free Vercel one. Three
-files are waiting on it: `public/sitemap.xml` and `public/robots.txt` each carry a
-`__SITE_ORIGIN__` token, and `index.html` still has a relative `og:image` and no `og:url`.
+**What it was.** Three files carried a `__SITE_ORIGIN__` token instead of an origin, because
+P7 could not finish them from inside the repository and would not invent a domain: a fake
+one produces link previews that 404 and a sitemap that indexes nothing, silently, whereas a
+token fails loudly the first time anything reads it.
 
-**What P7 learned.** This is the one thing in the phase that could not be finished from
-inside the repository, and it is smaller than it looks: the sitemap protocol requires a
-fully-qualified `<loc>`, and several social scrapers will not resolve a relative image
-against the page, so both are one string away from correct. P7 left an obvious token rather
-than a plausible invented origin on purpose — a fake domain produces link previews that 404
-and a sitemap that indexes nothing, and does it silently.
+**How it closed.** The owner chose `synapsedeck.mukeremshifa.com` — a subdomain of a domain
+they already own, Cloudflare for DNS, Vercel for hosting. `public/sitemap.xml` and
+`public/robots.txt` now carry the real origin and `index.html` has an absolute `og:url`,
+`og:image` and `twitter:image`.
 
-**Before starting.** The Vercel project is connected (the owner's list at the bottom of
-[P4-ship.md](P4-ship.md)). Then it is one commit: replace the token in two files, make
-`og:image` absolute, add `og:url`, and check the preview with any card validator.
+**What it cost, which was not nothing.** Making `og:image` absolute broke
+`brand-assets.test.ts`: its matcher only understood root-relative paths, so the moment the
+tag became a full URL the test stopped checking `og-image.png` existed at all — the exact
+silent 404 that file exists to catch, reintroduced by the fix. The matcher now understands
+same-origin absolute URLs, and a new test derives the origin from `og:url` and asserts
+`robots.txt` and `sitemap.xml` agree with it, because three files repeating one string with
+nothing forcing them to match is a drift waiting to happen that the running app never
+reveals.
+
+**Still open, and the owner's:** the origin is written down, but nothing serves it yet. See
+the deploy note in [README.md](README.md).
 
 ---
 

@@ -18,6 +18,4 @@ User-agent: *
 Allow: /$
 Disallow: /
 
-# __SITE_ORIGIN__ is a placeholder — see the comment in sitemap.xml. Replace it
-# in both files when a domain exists.
-Sitemap: __SITE_ORIGIN__/sitemap.xml
+Sitemap: https://synapsedeck.mukeremshifa.com/sitemap.xml

@@ -893,12 +893,21 @@ edited into those sections, so the reasoning that was replaced is still readable
   blanket rule is also the more accurate one: `vercel.json` rewrites every path to the same
   `index.html`, so a crawler following `/dashboard` gets a duplicate of the landing page at a
   second address rather than a new document.
-- **No domain, so no absolute URLs — recorded rather than invented.** `og:image` is still
-  relative, there is still no `og:url`, and `public/sitemap.xml` and `public/robots.txt` carry
-  a `__SITE_ORIGIN__` token instead of an origin. No Vercel project is connected yet (the
-  owner's list at the bottom of `P4-ship.md`), and a plausible-looking fake origin would
-  produce link previews that 404 and a sitemap that indexes nothing, silently. The token fails
-  loudly instead. Replacing it in three files is one commit, when there is a domain.
+- **The origin is `https://synapsedeck.mukeremshifa.com`, and it is stated in three files.**
+  P7 shipped a `__SITE_ORIGIN__` token rather than invent a domain, on the grounds that a
+  plausible fake origin produces link previews that 404 and a sitemap that indexes nothing,
+  silently, while a token fails loudly. The domain was chosen on 2026-08-14 — a subdomain of
+  the owner's `mukeremshifa.com`, DNS on Cloudflare, hosting on Vercel — so the token is
+  gone: `public/sitemap.xml` has a fully-qualified `<loc>`, `public/robots.txt` has a real
+  `Sitemap:` line, and `index.html` has an absolute `og:url`, `og:image` and `twitter:image`.
+
+  Three files now repeat one string, and nothing in the running app notices when they
+  disagree: the site renders perfectly while shared links preview a 404. So
+  `brand-assets.test.ts` derives the origin from `index.html`'s `og:url` and asserts the
+  other two match, and that no `__SITE_ORIGIN__` survives outside a comment. The same test's
+  asset check had to learn about absolute URLs at the same time — a path-only matcher stops
+  verifying `og-image.png` exists the moment that tag stops being root-relative, which is
+  precisely the silent 404 the file was written to catch.
 
 ### Closed at P6 (2026-08-13)
 

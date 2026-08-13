@@ -57,9 +57,9 @@ inventing a phase to fill a row. Everything that remains is either in
 owner's list below — and the owner's list is not work a session can plan its way out of.
 
 Two items moved into POST-V1 with P7 rather than being left implied by their absence: the
-**custom domain**, which three files now wait on with a `__SITE_ORIGIN__` token, and a
+**custom domain**, which three files waited on with a `__SITE_ORIGIN__` token, and a
 **mobile layout**, which the landing page was the first screen to state out loud that the app
-did not have.
+did not have. The first of those is now settled — see the deploy note below.
 
 **Post-P7 revision, 2026-08-14.** The owner made a pass over the landing page after the board
 closed: it is now responsive down to 360 px, the header spends a second accent on "Create
@@ -101,12 +101,34 @@ not use, and a public page must not reach the authenticated data layer at all. T
 correctness rule — it is about what requests fire and when — and it is testable, which a kB
 count never usefully was.
 
-The same P2 item is still outstanding and still belongs to the owner: setting
-`GROQ_API_KEY` and `GENERATION_MODEL` as function secrets and running `npm run fn:deploy`.
-Until then `/create/text` answers "not configured on this project yet". It did not block
-P3. **It blocked the end of P4**: `scripts/seed-demo.mjs` is written and its replay is
-verified offline, but it cannot be run, because the demo decks have to contain generated
-cards. The owner's remaining list is at the bottom of [P4-ship.md](P4-ship.md).
+**The P2/P4 generation item is done, and the plans said otherwise for two days.** Verified
+against the live project on 2026-08-14: `generate-cards` is deployed and `ACTIVE` (version 1,
+`verify_jwt: true`, 401 to an unauthenticated request), and `GROQ_API_KEY` and
+`GENERATION_MODEL` were both set as function secrets on 2026-08-12. So `/create/text` is
+configured, and `npm run demo:seed` is unblocked — it had been the reason P4 could not close.
+
+Worth naming as a failure mode rather than just fixing: the owner did that work from the
+dashboard and CLI, where no commit records it, so three files went on asserting it was
+outstanding. Anything done outside the repository has to be written back into the repository,
+or the plans quietly become fiction about the parts of the system they cannot see. The
+owner's remaining list is at the bottom of [P4-ship.md](P4-ship.md).
+
+**Deploy, as of 2026-08-14.** The backend is live; the frontend is not. Supabase holds the
+five migrations, the generated types and a deployed `generate-cards`. Vercel has never been
+connected, so there is no origin serving the app yet.
+
+The domain is decided: **`synapsedeck.mukeremshifa.com`**, a subdomain of the owner's
+`mukeremshifa.com`, DNS on Cloudflare and hosting on Vercel. Vercel because `vercel.json`
+was written at P4 and its SPA rewrite is already reasoned about in three documents;
+Cloudflare stays the registrar and nameserver only, which means the subdomain's record has
+to be **DNS-only, not proxied** — an orange-cloud record in front of Vercel puts two CDNs in
+series and breaks certificate issuance. POST-V1 item 11 is closed by the same commit as this
+note: the three files carry the real origin now.
+
+**What actually blocks the deploy is git, and it is the owner's.** Local `dev` is 16 commits
+ahead of both `origin/dev` and `origin/main`; `origin/dev` is still at P0. Vercel builds from
+GitHub, so connecting it today would deploy the scaffold, not the product. Everything from P1
+to here has to be pushed first. Per the project rules that is not something a session does.
 
 Fourth, new since P5: the visual system is `src/styles/globals.css` and nothing else — no
 component hardcodes a colour, and `src/test/tokens.test.ts` enforces three invariants about

@@ -386,13 +386,24 @@ Done in this phase, on `dev`:
 **Owner-only, and still outstanding.** These are the ones that need credentials, and the
 phase is not shippable without them:
 
-- **Task 6 — configure and deploy the Edge Function.** `npx supabase secrets set
-GROQ_API_KEY=… GENERATION_MODEL=llama-3.3-70b-versatile`, then `npm run fn:deploy`. Until
-  this is done, generation answers "not configured on this project yet" and **task 7 cannot
-  be run** — the seeder will fail with that message rather than write hand-made cards.
+- ~~**Task 6 — configure and deploy the Edge Function.**~~ **Done 2026-08-12, confirmed
+  against the live project 2026-08-14.** `GROQ_API_KEY` and `GENERATION_MODEL` are set as
+  function secrets, and `generate-cards` is deployed and `ACTIVE` (version 1,
+  `verify_jwt: true`). This list said otherwise for two days because the work happened in the
+  dashboard and the CLI, where no commit records it. **Task 7 is therefore unblocked.**
 - **Task 5 (the account half) — connect the repository to Vercel** and set the two
   environment variables. The config file is committed; the account is not something a
   session can hold.
+
+  **Blocked on a `git push` first.** As of 2026-08-14 local `dev` is 16 commits ahead of both
+  `origin/dev` and `origin/main`, and `origin/dev` is still at P0 — so everything from the
+  core loop to the landing page exists only on the owner's machine. Vercel builds from GitHub;
+  connecting it before that push deploys the scaffold and looks like a broken product.
+
+  The domain is settled: `synapsedeck.mukeremshifa.com`, DNS on Cloudflare, and the subdomain
+  record must be **DNS-only (grey cloud)**. Proxying Cloudflare in front of Vercel stacks two
+  CDNs and interferes with certificate issuance.
+
 - **Supabase Auth URL configuration** — Site URL and Redirect URLs, per the section above.
 - **Task 3's live verification.** `/auth/callback` is written and cannot be tested by the
   PGlite harness, which stubs only `auth.users`. Confirm a real signup email lands signed

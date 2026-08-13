@@ -99,16 +99,24 @@ Without those, the link in a confirmation email points somewhere the app is not,
 `/auth/callback` never receives anything. This is the most common way a working signup
 flow ships broken.
 
-The same domain finishes three files P7 left deliberately unfinished rather than guessing:
-replace `__SITE_ORIGIN__` in `public/sitemap.xml` and `public/robots.txt`, and make
-`og:image` absolute (plus add an `og:url`) in `index.html`. Until then a shared link renders
-without its preview card even though `public/og-image.png` is sitting right there.
+For this project those values are `https://synapsedeck.mukeremshifa.com` and
+`https://synapsedeck.mukeremshifa.com/auth/callback`.
+
+That origin is also written into `public/sitemap.xml`, `public/robots.txt` and the `og:url` /
+`og:image` / `twitter:image` tags in `index.html` — three files repeating one string, which
+`src/test/brand-assets.test.ts` asserts agree. If the domain ever moves, change it in
+`index.html` and run `npm test`; the failure tells you the other two.
 
 ### 2. Vercel
 
-Connect the repository. [vercel.json](vercel.json) already carries the build settings, so
-the only thing to add by hand is the environment — **exactly two variables**, matching
-[.env.example](.env.example):
+**Push first.** Vercel builds from GitHub, not from your working copy. If `dev` is ahead of
+`origin/dev`, Vercel deploys whatever GitHub has — which looks like a broken product rather
+than a stale one, and is a genuinely confusing hour.
+
+Connect the repository and set the production branch to `dev` (or merge to `main` first;
+either works, but decide before the first build rather than after). [vercel.json](vercel.json)
+already carries the build settings, so the only thing to add by hand is the environment —
+**exactly two variables**, matching [.env.example](.env.example):
 
 | Variable                        | Value                       |
 | ------------------------------- | --------------------------- |
@@ -129,6 +137,36 @@ message — it is right.
 - **Cache headers.** `assets/*` is content-hashed and served `immutable` for a year;
   `index.html` is `must-revalidate`, because it is the file that names the current hashes.
   Caching it would pin visitors to an old build indefinitely.
+
+### 3. The domain — Cloudflare DNS, Vercel hosting
+
+`mukeremshifa.com` has its nameservers at Cloudflare; the app lives on the `synapsedeck`
+subdomain. Cloudflare is the registrar and DNS here and nothing else — Vercel terminates TLS
+and serves the files.
+
+1. In Vercel: **Project → Settings → Domains → Add**, enter `synapsedeck.mukeremshifa.com`.
+   Vercel will show you the record it wants.
+2. In Cloudflare: **DNS → Records → Add record** on the `mukeremshifa.com` zone.
+
+   | Field        | Value                                              |
+   | ------------ | -------------------------------------------------- |
+   | Type         | `CNAME`                                            |
+   | Name         | `synapsedeck`                                      |
+   | Target       | `cname.vercel-dns.com` (use whatever Vercel shows) |
+   | Proxy status | **DNS only — grey cloud**                          |
+   | TTL          | Auto                                               |
+
+**The grey cloud is the part that matters.** Cloudflare proxies records by default (orange
+cloud), and proxying in front of Vercel puts two CDNs in series: Vercel cannot complete its
+ACME HTTP challenge, so the certificate never issues, and the symptom is a TLS error or a
+redirect loop rather than anything that names the cause. If Vercel sits on "Invalid
+Configuration" for more than a few minutes, check the cloud colour first.
+
+Cloudflare's own **Full (strict)** SSL mode is the right setting for the zone; **Flexible**
+will produce a redirect loop the moment the record is proxied.
+
+Then set Supabase's Site URL and Redirect URLs to the new origin (step 1 above), or signup
+confirmation emails keep pointing at wherever they pointed before.
 
 ## The demo account
 
