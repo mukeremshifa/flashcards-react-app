@@ -171,7 +171,7 @@ function StagedCardRow({
       onMouseDown={onFocus}
       className={cn(
         'py-4 transition-colors',
-        current && 'ring-primary/60 ring-2',
+        current && 'ring-ring ring-2',
         busy && 'opacity-60',
       )}
       aria-current={current ? 'true' : undefined}

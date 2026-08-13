@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+  <style>
+    .tile  { fill: #0A0A0A }
+    .plate { fill: #FAFAFA }
+    .node  { fill: #D0F861 }
+    @media (prefers-color-scheme: dark) {
+      .tile  { fill: #D0F861 }
+      .plate { fill: #0A0A0A }
+      .node  { fill: #FAFAFA }
+    }
+  </style>
+  <rect class="tile" width="40" height="40" rx="9"/>
+  <g transform="translate(4 4)">
+    <rect class="plate" x="3" y="4" width="11" height="22" rx="2.5"/>
+    <rect class="plate" x="18" y="6" width="11" height="22" rx="2.5"/>
+    <circle class="node" cx="16" cy="16" r="3.6"/>
+  </g>
+</svg>

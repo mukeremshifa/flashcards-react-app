@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { LogoLockup } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -39,6 +40,7 @@ function AuthShell({
 }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-12">
+      <LogoLockup className="mb-8 self-center" />
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">{title}</CardTitle>

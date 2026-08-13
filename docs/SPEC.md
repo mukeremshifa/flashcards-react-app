@@ -1,4 +1,4 @@
-# Flashcards + LLM — Product & Technical Specification
+# SynapseDeck — Product & Technical Specification
 
 **Status:** v1 · **Owner:** Mukerem Shifa · **Spec'd** 2026-08-11 · **Last revised** 2026-08-12
 
@@ -10,6 +10,9 @@ documents), then drills them with real spaced repetition and honest progress tra
 ---
 
 ## 1. Product intent
+
+**Name:** **SynapseDeck**, from P5. A synapse is a gap a signal jumps; a deck is cards in a
+stack — the mark is both at once. Named late and deliberately: P1–P4 had nothing to brand.
 
 **One-line:** Paste what you're studying, get good flashcards, and get drilled on them at
 the right time.
@@ -606,20 +609,22 @@ Controls, all enforced in the Edge Function, never client-side:
 
 ### 8.1 Stack
 
-| Concern        | Choice                          | Note                                                |
-| -------------- | ------------------------------- | --------------------------------------------------- |
-| Build          | Vite (existing)                 | keep                                                |
-| Language       | TypeScript                      | migrate `.jsx` → `.tsx` as files are rewritten      |
-| Styling        | Tailwind v4 + shadcn/ui         | `@tailwindcss/vite` plugin, `@import "tailwindcss"` |
-| Routing        | react-router 7 (existing)       | keep; add a protected-route wrapper                 |
-| Server state   | TanStack Query                  | cache, optimistic rating, retries                   |
-| Forms          | react-hook-form + `zodResolver` | reuses the §5.3 Zod schemas                         |
-| Toasts         | `sonner`                        | replaces `react-hot-toast` (shadcn default)         |
-| Charts         | Recharts                        | the heatmap is a hand-rolled CSS grid               |
-| Icons          | `lucide-react`                  | replaces `react-icons`                              |
-| SRS            | `ts-fsrs`                       |                                                     |
-| Backend client | `@supabase/supabase-js`         | replaces `axios` + `json-server`                    |
-| Tests          | Vitest + Testing Library        | see §10                                             |
+| Concern        | Choice                                                | Note                                                |
+| -------------- | ----------------------------------------------------- | --------------------------------------------------- |
+| Build          | Vite (existing)                                       | keep                                                |
+| Language       | TypeScript                                            | migrate `.jsx` → `.tsx` as files are rewritten      |
+| Styling        | Tailwind v4 + shadcn/ui                               | `@tailwindcss/vite` plugin, `@import "tailwindcss"` |
+| Routing        | react-router 7 (existing)                             | keep; add a protected-route wrapper                 |
+| Server state   | TanStack Query                                        | cache, optimistic rating, retries                   |
+| Forms          | react-hook-form + `zodResolver`                       | reuses the §5.3 Zod schemas                         |
+| Toasts         | `sonner`                                              | replaces `react-hot-toast` (shadcn default)         |
+| Charts         | Recharts                                              | the heatmap is a hand-rolled CSS grid               |
+| Icons          | `lucide-react`                                        | replaces `react-icons`                              |
+| SRS            | `ts-fsrs`                                             |                                                     |
+| Backend client | `@supabase/supabase-js`                               | replaces `axios` + `json-server`                    |
+| Tests          | Vitest + Testing Library                              | see §10                                             |
+| Type           | DM Serif Display · Plus Jakarta Sans · JetBrains Mono | self-hosted via `@fontsource`; no CDN (P5)          |
+| Brand assets   | `@resvg/resvg-js` + `png-to-ico` + `wawoff2`          | dev-only; `npm run brand:assets` (P5)               |
 
 ### 8.2 Routes
 
@@ -753,7 +758,10 @@ concrete payoff of the TypeScript decision.
 | **P1 — Core loop** ✅ done   | Auth; deck and card CRUD (all 3 types, manual); FSRS practice + `review_card` RPC; undo; keyboard controls; settings; empty states                     | ✅ 157 tests green; simulated week schedules correctly; undo restores exactly                                |
 | **P2 — Generation** ✅ done  | Edge Function; NDJSON→SSE streaming; staging + review gate; `generations` audit; quota + rate limit                                                    | ✅ 251 tests green; pipeline built and typechecked under Deno — see docs/plans/P2-generation.md              |
 | **P3 — Progress** ✅ done    | Heatmap, streak, retention, due forecast, state distribution; timezone-correct                                                                         | ✅ 299 tests green; SQL day buckets proven equal to `studyDayKey` across DST — see docs/plans/P3-progress.md |
-| **P4 — Ship**                | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | A stranger can sign up and get value                                                                         |
+| **P4 — Ship** ✅ done        | Deploy (Vercel + Supabase cloud); demo seed account; empty states; error boundaries; README                                                            | ✅ 305 tests green; the deploy itself is the owner's — see docs/plans/P4-ship.md                             |
+| **P5 — Identity** ✅ done    | Name; token system (chroma-0 neutrals + `#D0F861`); self-hosted type; mark; generated favicon/PWA/social assets; grade ramp                            | ✅ 324 tests green; `npm run brand:assets` is deterministic — see docs/plans/P5-identity.md                  |
+| **P6 — Surface**             | Per-screen re-skin: shell, practice, generate, progress, decks, auth and system states                                                                 | Every screen reads as one product, and the accent appears once per screen                                    |
+| **P7 — Landing**             | `/` becomes a public marketing route; SEO and social metadata; bundle discipline for a first visit                                                     | A stranger who has never heard of it understands the product before signing up                               |
 | **Post-v1**                  | Documents (txt/md, then PDF text-layer, chunking, background jobs); FSRS parameter optimisation; PWA/offline; shared decks; generated quiz mode; notes | —                                                                                                            |
 
 **P1 before P2 is deliberate.** The LLM is the exciting part; the scheduler is the part that
@@ -786,6 +794,37 @@ reasoning behind each is recoverable later.
   Groq's rate-limit page on 2026-08-12. Re-read them before changing `maxInputChars` or the
   burst limiter; they move, which is why the arithmetic that depends on them is written out
   in `src/lib/quota.ts` rather than left as bare constants.
+
+### Closed at P5 (2026-08-13)
+
+- **The name is SynapseDeck**, and the storage key moved with it
+  (`flashcards.theme` → `synapsedeck.theme`), discarding every saved theme preference. With
+  one demo account that was free; it never would be again.
+- **The accent is `#D0F861` = `oklch(0.922 0.181 122.5)`, and it can never be a foreground.**
+  Lightness 0.92 puts it at roughly 1.2:1 against white, so accent text or an accent hairline
+  is invisible. It is a field with ink on top, a chart fill, or a focus ring on dark —
+  nothing else. There is deliberately no darkened variant: darkening it far enough to read on
+  white produces olive, which is a different colour wearing the same name. `--ring` is
+  therefore ink in light and accent in dark, because one ring colour cannot serve both.
+- **Neutrals are chroma 0 in both themes.** Black, white, and one wavelength of green. A grey
+  tinted toward the accent muddies the only colour allowed to carry meaning, and
+  `src/test/tokens.test.ts` fails if one drifts.
+- **The four grade colours are one ramp ending on the accent.** Not four unrelated hues:
+  again → hard → good → easy sweeps red to `#D0F861`, and rating Easy _is_ the brand colour
+  because Easy is what the product exists to produce. Lightness climbs 0.60 → 0.72 → 0.82 →
+  0.92 so the four remain separable with no colour vision at all — a red-to-green sweep is
+  the exact axis deuteranopia flattens, so value carries the information and hue is the
+  reward. Before P5 the rating buttons ignored these tokens entirely while the charts used
+  them, so one rating was two colours depending on the screen.
+- **Type is DM Serif Display / Plus Jakarta Sans / JetBrains Mono, self-hosted.** The Google
+  Fonts link was the app's only third-party request, on a page that renders untrusted model
+  output. Adding `--font-sans` / `--font-serif` / `--font-mono` to `@theme` also fixed a bug
+  that had been live since P0: Tailwind's `font-sans` utility never resolved to Poppins.
+- **Brand assets are generated, not drawn by hand each time.** `npm run brand:assets` renders
+  every icon and social card from `assets/brand/*.svg` using the same font files the app
+  ships. Two traps are recorded in that script: resvg silently ignores woff/woff2 rather than
+  erroring, and `wawoff2`'s decompressor returns a view onto shared wasm memory, so
+  decompressing under `Promise.all` corrupts the output at exactly the right byte length.
 
 ### Closed at P3 (2026-08-12)
 

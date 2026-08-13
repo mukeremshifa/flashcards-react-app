@@ -1,4 +1,4 @@
-# Flashcards + LLM
+# SynapseDeck
 
 Paste your notes, get flashcards, and review them with a real spaced-repetition scheduler.
 

@@ -226,7 +226,7 @@ export function PracticeSession({
       onKeyDown={onKeyDown}
       role="region"
       aria-label="Practice session"
-      className="focus-visible:ring-ring/50 mx-auto max-w-2xl space-y-4 rounded-xl outline-none focus-visible:ring-2"
+      className="focus-visible:ring-ring mx-auto max-w-2xl space-y-4 rounded-xl outline-none focus-visible:ring-2"
     >
       <div className="text-muted-foreground flex items-center justify-between text-sm">
         <span>

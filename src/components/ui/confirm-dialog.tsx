@@ -34,7 +34,7 @@ export function ConfirmDialog({
         <AlertDialog.Content
           className={cn(
             'bg-background fixed top-1/2 left-1/2 z-50 w-[calc(100vw-2rem)] max-w-md',
-            '-translate-x-1/2 -translate-y-1/2 rounded-xl border p-6 shadow-lg',
+            '-translate-x-1/2 -translate-y-1/2 rounded-lg border p-6 shadow-lg',
           )}
         >
           <AlertDialog.Title className="text-lg font-semibold">{title}</AlertDialog.Title>

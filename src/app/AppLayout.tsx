@@ -9,6 +9,7 @@ import {
   Sparkles,
   Sun,
 } from 'lucide-react';
+import { LogoLockup } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { RouteErrorBoundary } from './ErrorBoundary';
@@ -47,8 +48,11 @@ export function AppLayout() {
     <div className="flex min-h-dvh flex-col">
       <header className="border-b">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-3">
-          <NavLink to="/dashboard" className="font-semibold tracking-tight">
-            Flashcards
+          <NavLink
+            to="/dashboard"
+            className="focus-visible:ring-ring rounded-md outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          >
+            <LogoLockup />
           </NavLink>
           <nav aria-label="Main" className="flex flex-1 flex-wrap gap-1">
             {NAV.map(({ to, label, icon: Icon }) => (

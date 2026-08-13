@@ -45,6 +45,9 @@ authored against the codebase it will actually run in.
 | P2 — Generation  | [P2-generation.md](P2-generation.md)   | ✅ Complete — 2026-08-12                                        |
 | P3 — Progress    | [P3-progress.md](P3-progress.md)       | ✅ Complete — 2026-08-12                                        |
 | P4 — Ship        | [P4-ship.md](P4-ship.md)               | 🟡 Code complete — 2026-08-13; the deploy itself is the owner's |
+| P5 — Identity    | [P5-identity.md](P5-identity.md)       | ✅ Complete — 2026-08-13                                        |
+| P6 — Surface     | [P6-surface.md](P6-surface.md)         | 📋 Planned, not started                                         |
+| P7 — Landing     | _(planned by P6)_                      | 📋 Not yet planned                                              |
 | Post-v1          | [POST-V1.md](POST-V1.md)               | 📋 Backlog, not a phase                                         |
 
 The split that still matters day to day: schema and RLS changes are testable locally
@@ -74,3 +77,10 @@ Until then `/create/text` answers "not configured on this project yet". It did n
 P3. **It blocked the end of P4**: `scripts/seed-demo.mjs` is written and its replay is
 verified offline, but it cannot be run, because the demo decks have to contain generated
 cards. The owner's remaining list is at the bottom of [P4-ship.md](P4-ship.md).
+
+Fourth, new since P5: the visual system is `src/styles/globals.css` and nothing else — no
+component hardcodes a colour, and `src/test/tokens.test.ts` enforces three invariants about
+that file (theme parity, chroma-0 neutrals, and the grade ramp's lightness ordering). The
+shipped icons and social cards in `public/` are **generated** by `npm run brand:assets` from
+`assets/brand/*.svg`; edit the masters, re-run, and commit the result. Re-running must leave
+`git status --porcelain public/` empty.

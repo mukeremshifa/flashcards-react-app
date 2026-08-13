@@ -30,7 +30,9 @@ export function SessionSummary({
   return (
     <Card className="mx-auto max-w-lg">
       <CardHeader className="items-center text-center">
-        <CheckCircle2Icon className="mx-auto size-8 text-emerald-500" aria-hidden />
+        <span className="bg-primary text-primary-foreground mx-auto flex size-10 items-center justify-center rounded-full">
+          <CheckCircle2Icon className="size-6" aria-hidden />
+        </span>
         <CardTitle>
           {reviewed === 0 ? 'Nothing to review' : `${plural(reviewed, 'card')} reviewed`}
         </CardTitle>

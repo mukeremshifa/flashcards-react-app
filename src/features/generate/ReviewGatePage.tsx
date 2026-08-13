@@ -287,7 +287,7 @@ function ReviewGate({
       onKeyDown={onKeyDown}
       role="region"
       aria-label="Review generated cards"
-      className="focus-visible:ring-ring/50 space-y-5 rounded-xl outline-none focus-visible:ring-2"
+      className="focus-visible:ring-ring space-y-5 rounded-xl outline-none focus-visible:ring-2"
     >
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>

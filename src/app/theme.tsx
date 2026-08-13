@@ -10,7 +10,8 @@ import {
 
 export type Theme = 'light' | 'dark' | 'system';
 
-const STORAGE_KEY = 'flashcards.theme';
+// Duplicated verbatim by the pre-paint theme script in index.html; move both together.
+const STORAGE_KEY = 'synapsedeck.theme';
 
 type ThemeContextValue = {
   theme: Theme;

@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Compass } from 'lucide-react';
 
+import { LogoLockup } from '@/components/Logo';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 
@@ -16,6 +17,9 @@ export function NotFoundPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-12">
+      <Link to="/dashboard" className="mb-8 self-center">
+        <LogoLockup />
+      </Link>
       <EmptyState
         icon={<Compass />}
         title="Page not found"

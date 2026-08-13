@@ -207,4 +207,11 @@ with a vendor whose script does not read the DOM.
 - **Per-deck analytics.** Settled at P3: `/progress` is account-wide, and the argument for
   it (a review log is one memory, not several) has not changed.
 - **A custom domain, CDN tuning, multi-region.** Vercel's default domain serves v1.
-- **A redesign.** The product's look is settled.
+
+**Reversed 2026-08-13.** This list used to end with "**A redesign.** The product's look is
+settled." It was not settled; it was never decided. P1–P4 shipped stock shadcn `neutral` with
+the default blue because a palette was never the phase's job, and "settled" recorded the
+absence of a decision as if it were one. The owner asked for an identity, which is a product
+decision and not a backlog item — so it became **P5 / P6 / P7** (SPEC §11) rather than an
+entry here. The identical line in [P4-ship.md](P4-ship.md) stands: it correctly describes what
+P4 chose not to do, and a finished plan is a record, not a live document.

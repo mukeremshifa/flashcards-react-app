@@ -34,11 +34,13 @@ export function McqOptions({
             key={index}
             className={cn(
               'flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-colors',
-              'has-[:focus-visible]:ring-ring/50 has-[:focus-visible]:border-ring has-[:focus-visible]:ring-[3px]',
+              'has-[:focus-visible]:ring-ring has-[:focus-visible]:border-ring has-[:focus-visible]:ring-2',
               !revealed && 'hover:bg-accent/50',
               revealed && 'cursor-default',
-              isSelected && !revealed && 'border-primary bg-primary/5',
-              showAsCorrect && 'border-emerald-500/60 bg-emerald-500/10',
+              // Neutral means "you picked this"; the accent is reserved for "this
+              // is the answer", so the two never have to be told apart by shade.
+              isSelected && !revealed && 'border-foreground bg-accent',
+              showAsCorrect && 'border-primary bg-primary/20',
               showAsWrong && 'border-destructive/60 bg-destructive/10',
             )}
           >
@@ -55,8 +57,8 @@ export function McqOptions({
                 'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border text-xs',
                 isSelected &&
                   !revealed &&
-                  'border-primary bg-primary text-primary-foreground',
-                showAsCorrect && 'border-emerald-600 bg-emerald-600 text-white',
+                  'border-foreground bg-foreground text-background',
+                showAsCorrect && 'border-primary bg-primary text-primary-foreground',
                 showAsWrong && 'border-destructive bg-destructive text-white',
               )}
             >
@@ -70,7 +72,7 @@ export function McqOptions({
             </span>
             <span className="flex-1 whitespace-pre-wrap">{option.text}</span>
             {revealed && option.correct && (
-              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="bg-primary text-primary-foreground rounded-sm px-1.5 py-0.5 text-xs font-semibold">
                 Correct
               </span>
             )}

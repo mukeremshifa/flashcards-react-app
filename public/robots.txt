@@ -1,0 +1,11 @@
+# Everything except the landing page needs a session, so there is nothing else
+# for a crawler to read. The sitemap arrives with the public route in P7.
+User-agent: *
+Allow: /$
+Disallow: /dashboard
+Disallow: /decks
+Disallow: /create
+Disallow: /practice
+Disallow: /progress
+Disallow: /settings
+Disallow: /auth

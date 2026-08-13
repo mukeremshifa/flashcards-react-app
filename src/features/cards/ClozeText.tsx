@@ -30,8 +30,10 @@ export function ClozeText({
             aria-label={revealed ? undefined : 'blank'}
             className={cn(
               'mx-0.5 inline-block rounded px-1 font-medium',
+              // Revealed, the answer is literally highlighted: accent field, ink
+              // on top. `text-primary` would be unreadable (globals.css).
               revealed
-                ? 'bg-primary/10 text-primary'
+                ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-transparent select-none',
             )}
           >
